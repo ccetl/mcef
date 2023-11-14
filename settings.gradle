@@ -1,11 +1,17 @@
 pluginManagement {
     repositories {
+        jcenter()
+        maven {
+            name = 'Fabric'
+            url = 'https://maven.fabricmc.net/'
+        }
         gradlePluginPortal()
-        maven { url = 'https://maven.fabricmc.net/' }
-        maven { url = 'https://maven.neoforged.net/releases' }
-        mavenCentral()
     }
+
+    plugins {
+        id 'fabric-loom' version loom_version
+    }
+
 }
 
 rootProject.name = 'mcef'
-include('common', 'fabric', 'forge')

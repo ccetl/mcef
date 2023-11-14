@@ -1,88 +1,50 @@
 plugins {
-    id 'fabric-loom' version "${fabric_loom_version}" apply false
+    id 'fabric-loom'
 }
 
 tasks.register('cloneJcef', Exec) {
-    commandLine 'git', 'submodule', 'update', '--init', '--recursive', 'common/java-cef'
+    commandLine 'git', 'submodule', 'update', '--init', '--recursive', 'java-cef'
 }
 
-// https://gist.github.com/JonasGroeger/7620911
-def getCheckedOutGitCommitHash(Project mcefParent) {
-    def gitFolder = "$mcefParent.projectDir/.git/modules/common/java-cef/"
-    def takeFromHash = 40
-    /*
-     * '.git/HEAD' contains either
-     *      in case of detached head: the currently checked out commit hash
-     *      otherwise: a reference to a file containing the current commit hash
-     */
-    def gitHeadFile = new File(gitFolder + "HEAD");
-    if (gitHeadFile.exists()) {
-        def head = gitHeadFile.text.split(":") // .git/HEAD
-        def isCommit = head.length == 1 // e5a7c79edabbf7dd39888442df081b1c9d8e88fd
-        // def isRef = head.length > 1     // ref: refs/heads/master
+sourceCompatibility = JavaLanguageVersion.of(java_version as int)
+targetCompatibility = JavaLanguageVersion.of(java_version as int)
 
-        if (isCommit) return head[0].trim().take(takeFromHash) // e5a7c79edabb
+repositories {
+    mavenCentral()
+    mavenLocal()
+    maven { url = 'https://maven.fabricmc.net/' }
+}
 
-        def refHead = new File(gitFolder + head[1].trim()) // .git/refs/heads/master
-        refHead.text.trim().take takeFromHash
-    } else {
-        return ""
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+}
+
+sourceSets {
+    jcef {
+        java {
+            srcDir "java-cef/java"
+            exclude "**/tests/**"
+        }
+    }
+
+    main {
+        compileClasspath += jcef.output
+        runtimeClasspath += jcef.output
     }
 }
 
-tasks.register('publishMaven', GradleBuild) {
-    group = 'mcef'
-    tasks = [
-          ':common:publish',
-          ':fabric:publish',
-          ':forge:publish'
-    ]
+processResources.dependsOn(processJcefResources)
+
+jar {
+    from sourceSets.jcef.output.classesDirs
+    from sourceSets.jcef.output.resourcesDir
 }
 
-tasks.register('publishCurseforge', GradleBuild) {
-    group = 'mcef'
-    tasks = [
-            ':common:clean',
-            ':forge:clean',
-            ':fabric:clean',
-            ':forge:curseforge',
-            ':fabric:curseforge'
-    ]
-}
-
-tasks.register('fabricClient', GradleBuild) {
-    group = 'mcef'
-    tasks = [
-          ':fabric:runClient'
-    ]
-}
-
-tasks.register('forgeClient', GradleBuild) {
-    group = 'mcef'
-    tasks = [
-          ':forge:runClient'
-    ]
-}
-
-tasks.register('fabricServer', GradleBuild) {
-    group = 'mcef'
-    tasks = [
-          ':fabric:runServer'
-    ]
-}
-
-tasks.register('forgeServer', GradleBuild) {
-    group = 'mcef'
-    tasks = [
-          ':forge:runServer'
-    ]
-}
-
-tasks.register('cleanAll', GradleBuild) {
-    group = 'mcef'
-    tasks = [
-          ':common:clean',
-          ':fabric:clean',
-          ':forge:clean',
-    ]
+idea {
+    module {
+        excludeDirs += file("java-cef/java/tests")
+        inheritOutputDirs true
+    }
 }

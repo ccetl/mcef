@@ -20,13 +20,13 @@
 
 package com.cinemamod.mcef.internal;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.ChatFormatting;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.gui.screens.TitleScreen;
-import net.minecraft.network.chat.Component;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.TitleScreen;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 public class MCEFDownloaderMenu extends Screen {
     private final MCEFDownloadListener listener;
@@ -34,13 +34,13 @@ public class MCEFDownloaderMenu extends Screen {
     private final TitleScreen menu;
 
     public MCEFDownloaderMenu(TitleScreen menu, MCEFDownloadListener listener) {
-        super(Component.literal("MCEF is downloading Chromium Embedded Framework..."));
+        super(Text.literal("MCEF is downloading Chromium Embedded Framework..."));
         this.menu = menu;
         this.listener = listener;
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    public void render(DrawContext graphics, int mouseX, int mouseY, float partialTick) {
         renderBackground(graphics);
         double cx = width / 2d;
         double cy = height / 2d;
@@ -48,10 +48,10 @@ public class MCEFDownloaderMenu extends Screen {
         double progressBarHeight = 14;
         double progressBarWidth = width / 3d; // TODO: base off screen with (1/3 of screen)
 
-        PoseStack poseStack = graphics.pose();
+        MatrixStack poseStack = graphics.getMatrices();
 
         /* Draw Progress Bar */
-        poseStack.pushPose();
+        poseStack.push();
         poseStack.translate(cx, cy, 0);
         poseStack.translate(-progressBarWidth / 2d, -progressBarHeight / 2d, 0);
         graphics.fill( // bar border
@@ -72,7 +72,7 @@ public class MCEFDownloaderMenu extends Screen {
                 (int) progressBarHeight - 4,
                 -1
         );
-        poseStack.popPose();
+        poseStack.pop();
 
         // putting this here incase I want to re-add a third line later on
         // allows me to generalize the code to not care about line count
@@ -84,44 +84,44 @@ public class MCEFDownloaderMenu extends Screen {
 
         /* Draw Text */
         // calculate offset for the top line
-        int oSet = ((font.lineHeight / 2) + ((font.lineHeight + 2) * (text.length + 2))) + 4;
-        poseStack.pushPose();
+        int oSet = ((textRenderer.fontHeight / 2) + ((textRenderer.fontHeight + 2) * (text.length + 2))) + 4;
+        poseStack.push();
         poseStack.translate(
                 (int) (cx),
                 (int) (cy - oSet),
                 0
         );
         // draw menu name
-        graphics.drawString(
-                font,
-                ChatFormatting.GOLD + title.getString(),
-                (int) -(font.width(title.getString()) / 2d), 0,
+        graphics.drawCenteredTextWithShadow(
+                textRenderer,
+                Formatting.GOLD + title.getString(),
+                (int) -(textRenderer.getWidth(title.getString()) / 2d), 0,
                 0xFFFFFF
         );
         // draw text
         int index = 0;
         for (String s : text) {
             if (index == 1) {
-                poseStack.translate(0, font.lineHeight + 2, 0);
+                poseStack.translate(0, textRenderer.fontHeight + 2, 0);
             }
 
-            poseStack.translate(0, font.lineHeight + 2, 0);
-            graphics.drawString(
-                    font,
+            poseStack.translate(0, textRenderer.fontHeight + 2, 0);
+            graphics.drawCenteredTextWithShadow(
+                    textRenderer,
                     s,
-                    (int) -(font.width(s) / 2d), 0,
+                    (int) -(textRenderer.getWidth(s) / 2d), 0,
                     0xFFFFFF
             );
             index++;
         }
-        poseStack.popPose();
+        poseStack.pop();
     }
 
     @Override
     public void tick() {
         if (listener.isDone()) {
-            onClose();
-            Minecraft.getInstance().setScreen(menu);
+            close();
+            MinecraftClient.getInstance().setScreen(menu);
         }
     }
 
@@ -131,7 +131,8 @@ public class MCEFDownloaderMenu extends Screen {
     }
 
     @Override
-    public boolean isPauseScreen() {
+    public boolean shouldPause() {
         return true;
     }
+
 }
