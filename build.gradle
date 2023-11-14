@@ -42,6 +42,12 @@ jar {
     from sourceSets.jcef.output.resourcesDir
 }
 
+
+remapJar {
+    targetNamespace = 'named'
+    addNestedDependencies = true
+}
+
 idea {
     module {
         excludeDirs += file("java-cef/java/tests")
