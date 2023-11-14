@@ -1,9 +1,17 @@
 plugins {
     id 'fabric-loom'
+    id 'maven-publish'
 }
 
 tasks.register('cloneJcef', Exec) {
     commandLine 'git', 'submodule', 'update', '--init', '--recursive', 'java-cef'
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
 }
 
 sourceCompatibility = JavaLanguageVersion.of(java_version as int)
@@ -35,11 +43,23 @@ sourceSets {
     }
 }
 
-processResources.dependsOn(processJcefResources)
+processResources {
+    inputs.property "version", project.version
+
+    dependsOn processJcefResources
+}
+
+
+tasks.withType(JavaCompile).configureEach {
+    it.options.release = 17
+}
 
 jar {
     from sourceSets.jcef.output.classesDirs
     from sourceSets.jcef.output.resourcesDir
+    from("LICENSE") {
+        rename { "${it}_${project.base.archivesName.get()}"}
+    }
 }
 
 java {
@@ -47,11 +67,22 @@ java {
     // if it is present.
     // If you remove this line, sources will not be generated.
     withSourcesJar()
+
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
 idea {
     module {
         excludeDirs += file("java-cef/java/tests")
         inheritOutputDirs true
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
     }
 }
