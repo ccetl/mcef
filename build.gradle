@@ -42,6 +42,13 @@ jar {
     from sourceSets.jcef.output.resourcesDir
 }
 
+java {
+    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
+    // if it is present.
+    // If you remove this line, sources will not be generated.
+    withSourcesJar()
+}
+
 idea {
     module {
         excludeDirs += file("java-cef/java/tests")
