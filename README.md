@@ -3,13 +3,11 @@
 </p>
 
 # MCEF (Minecraft Chromium Embedded Framework)
-MCEF is a mod and library for adding the Chromium web browser into Minecraft.
+A fork of the MCEF mod and library for adding the Chromium web browser into Minecraft.
 
-MCEF is based on java-cef (Java Chromium Embedded Framework), which is based on CEF (Chromium Embedded Framework), which is based on Chromium. It was originally created by montoyo. It was rewritten and currently maintained by the CinemaMod Group.
+MCEF is based on java-cef (Java Chromium Embedded Framework), which is based on CEF (Chromium Embedded Framework), which is based on Chromium. It was originally created by montoyo. It was rewritten by the CinemaMod Group.
 
 MCEF contains a downloader system for downloading the java-cef & CEF binaries required by the Chromium browser. This requires a connection to https://mcef-download.cinemamod.com.
-
-Discussion: https://discord.gg/rNrh5kW8Ty
 
 Current Chromium version: `116.0.5845.190`
 
@@ -22,39 +20,25 @@ Current Chromium version: `116.0.5845.190`
 
 **This mod will not work on Android.
 
-## For Players
-This is the source code for MCEF.
-
-Download the mod for Fabric or Forge on either:
-- CurseForge: https://www.curseforge.com/minecraft/mc-mods/mcef
-- Modrinth: https://modrinth.com/mod/mcef
-
 ## For Modders
 MCEF is LGPL, as long as your project doesn't modify or include MCEF source code, you can choose a different license. Read the full license in the LICENSE file in this directory.
 
 ### Using MCEF in Your Project
 ```
 repositories {
-    maven {
-        url = uri('https://mcef-download.cinemamod.com/repositories/releases')
-    }
-    // Optional for snapshot versions
-    maven {
-        url = uri('https://mcef-download.cinemamod.com/repositories/snapshots')
-    }
+    maven { url 'https://jitpack.io' }
 }
 ```
 ```
 dependencies {
-    implementation 'com.cinemamod:mcef:2.1.1-1.20.1'
+    implementation 'com.github.CCBlueX:mcef:1.20.1-SNAPSHOT'
 }
 ```
-See the [mcef-fabric-example-mod](https://github.com/CinemaMod/mcef-fabric-example-mod) for a complete example Fabric project.
 
 ### Building & Modifying MCEF
 After cloning this repo, you will need to clone the java-cef git submodule. There is a gradle task for this: `./gradlew cloneJcef`.
 
-To run the Fabric client: `./gradlew fabricClient`
-To run the Forge client: `./gradlew forgeClient`
-
-In-game, there is a demo browser if you press F10 after you're loaded into a world (the demo browser only exists when you're running from a development environment).
+## Fork Hirarchy
+- [CCBlueX/mcef](https://github.com/CCBlueX/mcef)
+- [CinemaMod/mcef](https://github.com/CinemaMod/mcef)
+- [montoyo/mcef](https://github.com/montoyo/mcef)
