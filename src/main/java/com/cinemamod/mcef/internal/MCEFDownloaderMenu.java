@@ -92,7 +92,7 @@ public class MCEFDownloaderMenu extends Screen {
                 0
         );
         // draw menu name
-        graphics.drawCenteredTextWithShadow(
+        graphics.drawTextWithShadow(
                 textRenderer,
                 Formatting.GOLD + title.getString(),
                 (int) -(textRenderer.getWidth(title.getString()) / 2d), 0,
@@ -106,7 +106,7 @@ public class MCEFDownloaderMenu extends Screen {
             }
 
             poseStack.translate(0, textRenderer.fontHeight + 2, 0);
-            graphics.drawCenteredTextWithShadow(
+            graphics.drawTextWithShadow(
                     textRenderer,
                     s,
                     (int) -(textRenderer.getWidth(s) / 2d), 0,
