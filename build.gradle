@@ -4,7 +4,7 @@ plugins {
 }
 
 def getCheckedOutGitCommitHash(Project mcefParent) {
-    def gitFolder = "$mcefParent.projectDir/.git/modules/common/java-cef/"
+    def gitFolder = "$mcefParent.projectDir/.git/modules/java-cef/"
     def takeFromHash = 40
     /*
      * '.git/HEAD' contains either
