@@ -2,4 +2,5 @@ jdk:
   - openjdk17
 install:
   - echo "Setting up JCEF"
+  - git submodule update --init --recursive
   - ./gradlew cloneJcef
