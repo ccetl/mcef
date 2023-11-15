@@ -67,8 +67,8 @@ public class CefDownloadMixin {
         System.setProperty("jcef.path", new File(mcefLibrariesDir, MCEFPlatform.getPlatform().getNormalizedName()).getCanonicalPath());
     }
 
-    @Inject(at = @At("HEAD"), method = "<clinit>")
-    private static void sinit(CallbackInfo callbackInfo) {
+    @Inject(at = @At(value = "FIELD", target = "Lnet/minecraft/client/MinecraftClient;runDirectory:Ljava/io/File;", shift = At.Shift.AFTER), method = "<init>")
+    public void initLibrary(CallbackInfo callbackInfo) {
         try {
             setupLibraryPath();
         } catch (IOException e) {
