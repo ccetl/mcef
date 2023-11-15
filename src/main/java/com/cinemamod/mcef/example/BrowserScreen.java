@@ -29,40 +29,49 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.render.*;
 import net.minecraft.text.Text;
 
-public class ExampleScreen extends Screen {
-    private static final int BROWSER_DRAW_OFFSET = 20;
+public class BrowserScreen extends Screen {
+
+    private final int browserDrawOffset;
 
     private MCEFBrowser browser;
 
-    protected ExampleScreen(Text component) {
+    private String urlToLoad;
+
+    public BrowserScreen(Text component, String urlToLoad) {
+        this(component, urlToLoad, 0);
+    }
+
+    public BrowserScreen(Text component, String urlToLoad, int browserDrafOffset) {
         super(component);
+        this.urlToLoad = urlToLoad;
+        this.browserDrawOffset = browserDrafOffset;
     }
 
     @Override
     protected void init() {
         super.init();
+
         if (browser == null) {
-            String url = "https://www.google.com";
             boolean transparent = true;
-            browser = MCEF.createBrowser(url, transparent);
+            browser = MCEF.createBrowser(urlToLoad, transparent);
             resizeBrowser();
         }
     }
 
     private int mouseX(double x) {
-        return (int) ((x - BROWSER_DRAW_OFFSET) * client.getWindow().getScaleFactor());
+        return (int) ((x - browserDrawOffset) * client.getWindow().getScaleFactor());
     }
 
     private int mouseY(double y) {
-        return (int) ((y - BROWSER_DRAW_OFFSET) * client.getWindow().getScaleFactor());
+        return (int) ((y - browserDrawOffset) * client.getWindow().getScaleFactor());
     }
 
     private int scaleX(double x) {
-        return (int) ((x - BROWSER_DRAW_OFFSET * 2) * client.getWindow().getScaleFactor());
+        return (int) ((x - browserDrawOffset * 2) * client.getWindow().getScaleFactor());
     }
 
     private int scaleY(double y) {
-        return (int) ((y - BROWSER_DRAW_OFFSET * 2) * client.getWindow().getScaleFactor());
+        return (int) ((y - browserDrawOffset * 2) * client.getWindow().getScaleFactor());
     }
 
     private void resizeBrowser() {
@@ -92,10 +101,10 @@ public class ExampleScreen extends Screen {
         var t = Tessellator.getInstance();
         BufferBuilder buffer = t.getBuffer();
         buffer.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
-        buffer.vertex(BROWSER_DRAW_OFFSET, height - BROWSER_DRAW_OFFSET, 0).texture(0.0f, 1.0f).color(255, 255, 255, 255).next();
-        buffer.vertex(width - BROWSER_DRAW_OFFSET, height - BROWSER_DRAW_OFFSET, 0).texture(1.0f, 1.0f).color(255, 255, 255, 255).next();
-        buffer.vertex(width - BROWSER_DRAW_OFFSET, BROWSER_DRAW_OFFSET, 0).texture(1.0f, 0.0f).color(255, 255, 255, 255).next();
-        buffer.vertex(BROWSER_DRAW_OFFSET, BROWSER_DRAW_OFFSET, 0).texture(0.0f, 0.0f).color(255, 255, 255, 255).next();
+        buffer.vertex(browserDrawOffset, height - browserDrawOffset, 0).texture(0.0f, 1.0f).color(255, 255, 255, 255).next();
+        buffer.vertex(width - browserDrawOffset, height - browserDrawOffset, 0).texture(1.0f, 1.0f).color(255, 255, 255, 255).next();
+        buffer.vertex(width - browserDrawOffset, browserDrawOffset, 0).texture(1.0f, 0.0f).color(255, 255, 255, 255).next();
+        buffer.vertex(browserDrawOffset, browserDrawOffset, 0).texture(0.0f, 0.0f).color(255, 255, 255, 255).next();
         t.draw();
         RenderSystem.setShaderTexture(0, 0);
         RenderSystem.enableDepthTest();
@@ -153,4 +162,9 @@ public class ExampleScreen extends Screen {
         browser.setFocus(true);
         return super.charTyped(codePoint, modifiers);
     }
+
+    public MCEFBrowser getBrowser() {
+        return browser;
+    }
+
 }
