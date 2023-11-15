@@ -3,6 +3,29 @@ plugins {
     id 'maven-publish'
 }
 
+def getCheckedOutGitCommitHash(Project mcefParent) {
+    def gitFolder = "$mcefParent.projectDir/.git/modules/common/java-cef/"
+    def takeFromHash = 40
+    /*
+     * '.git/HEAD' contains either
+     *      in case of detached head: the currently checked out commit hash
+     *      otherwise: a reference to a file containing the current commit hash
+     */
+    def gitHeadFile = new File(gitFolder + "HEAD");
+    if (gitHeadFile.exists()) {
+        def head = gitHeadFile.text.split(":") // .git/HEAD
+        def isCommit = head.length == 1 // e5a7c79edabbf7dd39888442df081b1c9d8e88fd
+        // def isRef = head.length > 1     // ref: refs/heads/master
+
+        if (isCommit) return head[0].trim().take(takeFromHash) // e5a7c79edabb
+
+        def refHead = new File(gitFolder + head[1].trim()) // .git/refs/heads/master
+        refHead.text.trim().take takeFromHash
+    } else {
+        return ""
+    }
+}
+
 tasks.register('cloneJcef', Exec) {
     commandLine 'git', 'submodule', 'update', '--init', '--recursive', 'java-cef'
 }
@@ -55,6 +78,18 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 jar {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes(['Specification-Title'     : archives_base_name,
+                    'Specification-Vendor'    : group,
+                    'Specification-Version'   : "1",
+                    'Implementation-Title'    : archives_base_name,
+                    'Implementation-Version'  : mod_version,
+                    'Implementation-Vendor'   : group,
+                    'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                    'java-cef-commit'         : getCheckedOutGitCommitHash(project)
+        ])
+    }
     from sourceSets.jcef.output.classesDirs
     from sourceSets.jcef.output.resourcesDir
     from("LICENSE") {
