@@ -80,8 +80,9 @@ final class CefUtil {
                 "--autoplay-policy=no-user-gesture-required",
                 "--disable-web-security",
                 "--enable-widevine-cdm", // https://canary.discord.com/channels/985588552735809696/992495232035868682/1151704612924039218
+                "--off-screen-rendering-enabled",
                 "--off-screen-frame-rate=60",
-                "--disable-gpu-vsync"
+
                 // TODO: should probably make this configurable
                 //       based off this page: https://magpcss.org/ceforum/viewtopic.php?f=6&t=11672
                 //       it seems the solution to the white screen is to add the "--disable-gpu" switch
