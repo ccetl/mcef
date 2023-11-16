@@ -44,7 +44,7 @@ public class MCEFSettings {
 
     public MCEFSettings() {
         skipDownload = false;
-        downloadMirror = "https://mcef-download.cinemamod.com";
+        downloadMirror = "https://dl.ccbluex.net/resources";
         userAgent = null;
     }
 

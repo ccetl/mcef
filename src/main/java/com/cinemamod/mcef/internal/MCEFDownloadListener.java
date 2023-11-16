@@ -20,11 +20,8 @@
 
 package com.cinemamod.mcef.internal;
 
-import org.spongepowered.asm.mixin.Unique;
-
 public class MCEFDownloadListener {
-    // TODO: I kinda would like to keep other mods from accessing this, but mixin complicates stuff
-    @Unique
+
     public static final MCEFDownloadListener INSTANCE = new MCEFDownloadListener();
 
     private String task;
@@ -55,4 +52,5 @@ public class MCEFDownloadListener {
     public boolean isDone() {
         return done;
     }
+
 }
