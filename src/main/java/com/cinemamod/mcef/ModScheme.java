@@ -31,6 +31,7 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Locale;
 
 // https://github.com/CinemaMod/mcef/blob/master-1.19.2/src/main/java/net/montoyo/mcef/example/ModScheme.java
 public class ModScheme implements CefResourceHandler {
@@ -65,8 +66,8 @@ public class ModScheme implements CefResourceHandler {
         }
 
         // TODO: this may or may not require forge/fabric specific code?
-//        is = ModList.get().getModContainerById(mod).get().getMod().getClass().getResourceAsStream("/assets/" + mod.toLowerCase() + "/html/" + loc.toLowerCase());
-        is = ModScheme.class.getClassLoader().getResourceAsStream("/assets/" + mod.toLowerCase() + "/html/" + loc.toLowerCase());
+//        is = ModList.get().getModContainerById(mod).get().getMod().getClass().getResourceAsStream("/assets/" + mod.toLowerCase(Locale.US) + "/html/" + loc.toLowerCase());
+        is = ModScheme.class.getClassLoader().getResourceAsStream("/assets/" + mod.toLowerCase(Locale.US) + "/html/" + loc.toLowerCase(Locale.US));
         if (is == null) {
             LOGGER.warn("Resource " + url + " NOT found!");
             cefCallback.cancel();

@@ -45,8 +45,8 @@ public enum MCEFPlatform {
     }
 
     public static MCEFPlatform getPlatform() {
-        String os = System.getProperty("os.name").toLowerCase();
-        String arch = System.getProperty("os.arch").toLowerCase();
+        String os = System.getProperty("os.name").toLowerCase(Locale.US);
+        String arch = System.getProperty("os.arch").toLowerCase(Locale.US);
 
         if (os.startsWith("linux")) {
             if (arch.equals("amd64")) {
