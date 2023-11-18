@@ -21,6 +21,7 @@
 package com.cinemamod.mcef;
 
 import com.cinemamod.mcef.listeners.MCEFInitListener;
+import net.minecraft.client.MinecraftClient;
 import org.cef.misc.CefCursorType;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -88,8 +89,17 @@ public final class MCEF {
                     (browser, frame, url, request) -> new ModScheme(request.getURL())
             );
 
-            // Add shutdown hook - without this, the JCEF helper process will linger and eat CPU
-            Runtime.getRuntime().addShutdownHook(new Thread(CefUtil::shutdown, "MCEF-Shutdown"));
+            // Handle shutdown events, macOS is special
+            // These are important; the jcef process will linger around if not done
+            MCEFPlatform platform = MCEFPlatform.getPlatform();
+            if (platform.isLinux() || platform.isWindows()) {
+                Runtime.getRuntime().addShutdownHook(new Thread(MCEF::shutdown, "MCEF-Shutdown"));
+            } else if (platform.isMacOS()) {
+                CefUtil.getCefApp().macOSTerminationRequestRunnable = () -> {
+                    shutdown();
+                    MinecraftClient.getInstance().stop();
+                };
+            }
 
             return true;
         }

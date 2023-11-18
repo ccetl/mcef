@@ -110,8 +110,6 @@ final class CefUtil {
         cefAppInstance = CefApp.getInstance(cefSwitches, cefSettings);
         cefClientInstance = cefAppInstance.createClient();
 
-        cefAppInstance.macOSTerminationRequestRunnable = () -> MinecraftClient.getInstance().stop();
-
         return init = true;
     }
 
