@@ -37,7 +37,7 @@ import java.net.URLConnection;
  * in the MCEFSettings properties file; see {@link MCEFSettings}.
  * Email ds58@mailbox.org for any questions or concerns regarding the file hosting.
  */
-class MCEFDownloader {
+public class MCEFDownloader {
 
     private static final String JAVA_CEF_DOWNLOAD_URL = "${host}/java-cef-builds/${java-cef-commit}/${platform}.tar.gz";
     private static final String JAVA_CEF_CHECKSUM_DOWNLOAD_URL = "${host}/java-cef-builds/${java-cef-commit}/${platform}.tar.gz.sha256";
