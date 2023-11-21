@@ -39,7 +39,7 @@ import java.util.*;
  * a modified version of java-cef (Java Chromium Embedded Framework).
  */
 public final class MCEF {
-    public final Logger LOGGER = LoggerFactory.getLogger("MCEF");
+    public static final Logger LOGGER = LoggerFactory.getLogger("MCEF");
     private static MCEFSettings settings;
     private static MCEFApp app;
     private static MCEFClient client;
