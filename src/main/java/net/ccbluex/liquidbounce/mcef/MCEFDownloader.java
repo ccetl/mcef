@@ -18,9 +18,9 @@
  *     USA
  */
 
-package com.cinemamod.mcef;
+package net.ccbluex.liquidbounce.mcef;
 
-import com.cinemamod.mcef.internal.MCEFDownloadListener;
+import net.ccbluex.liquidbounce.mcef.internal.MCEFDownloadListener;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -37,7 +37,8 @@ import java.net.URLConnection;
  * in the MCEFSettings properties file; see {@link MCEFSettings}.
  * Email ds58@mailbox.org for any questions or concerns regarding the file hosting.
  */
-public class MCEFDownloader {
+class MCEFDownloader {
+
     private static final String JAVA_CEF_DOWNLOAD_URL = "${host}/java-cef-builds/${java-cef-commit}/${platform}.tar.gz";
     private static final String JAVA_CEF_CHECKSUM_DOWNLOAD_URL = "${host}/java-cef-builds/${java-cef-commit}/${platform}.tar.gz.sha256";
 
@@ -45,10 +46,52 @@ public class MCEFDownloader {
     private final String javaCefCommitHash;
     private final MCEFPlatform platform;
 
-    public MCEFDownloader(String host, String javaCefCommitHash, MCEFPlatform platform) {
+    private MCEFDownloader(String host, String javaCefCommitHash, MCEFPlatform platform) {
         this.host = host;
         this.javaCefCommitHash = javaCefCommitHash;
         this.platform = platform;
+    }
+
+    public static void downloadJcef() throws IOException {
+        setupLibraryPath();
+
+        var javaCefCommit = MCEF.getJavaCefCommit();
+
+        MCEF.getLogger().info("java-cef commit: " + javaCefCommit);
+
+        var settings = MCEF.getSettings();
+        var downloader = new MCEFDownloader(settings.getDownloadMirror(), javaCefCommit, MCEFPlatform.getPlatform());
+
+        // We always download the checksum for the java-cef build
+        // We will compare this with mcef-libraries/<platform>.tar.gz.sha256
+        // If the contents of the files differ (or it doesn't exist locally), we know we need to redownload JCEF
+        var downloadJcefBuild = !downloader.downloadJavaCefChecksum(MCEFDownloadListener.INSTANCE);;
+
+        if (downloadJcefBuild && !settings.isSkipDownload()) {
+            downloader.downloadJavaCefBuild(MCEFDownloadListener.INSTANCE);
+            downloader.extractJavaCefBuild(true, MCEFDownloadListener.INSTANCE);
+        }
+
+        MCEFDownloadListener.INSTANCE.setDone(true);
+    }
+
+    private static void setupLibraryPath() throws IOException {
+        final File mcefLibrariesDir;
+
+        // Check for development environment
+        // TODO: handle eclipse/others
+        // i.e. mcef-repo/forge/build
+        File buildDir = new File("../build");
+        if (buildDir.exists() && buildDir.isDirectory()) {
+            mcefLibrariesDir = new File(buildDir, "mcef-libraries/");
+        } else {
+            mcefLibrariesDir = new File("mods/mcef-libraries/");
+        }
+
+        mcefLibrariesDir.mkdirs();
+
+        System.setProperty("mcef.libraries.path", mcefLibrariesDir.getCanonicalPath());
+        System.setProperty("jcef.path", new File(mcefLibrariesDir, MCEFPlatform.getPlatform().getNormalizedName()).getCanonicalPath());
     }
 
     public String getHost() {
@@ -70,7 +113,7 @@ public class MCEFDownloader {
                 .replace("${platform}", platform.getNormalizedName());
     }
 
-    public void downloadJavaCefBuild(MCEFDownloadListener percentCompleteConsumer) throws IOException {
+    private void downloadJavaCefBuild(MCEFDownloadListener percentCompleteConsumer) throws IOException {
         File mcefLibrariesPath = new File(System.getProperty("mcef.libraries.path"));
         percentCompleteConsumer.setTask("Downloading JCEF");
         downloadFile(getJavaCefDownloadUrl(), new File(mcefLibrariesPath, platform.getNormalizedName() + ".tar.gz"), percentCompleteConsumer);
@@ -81,7 +124,7 @@ public class MCEFDownloader {
      * false if the jcef build checksum file did not exist or did not match; this means we should redownload JCEF
      * @throws IOException
      */
-    public boolean downloadJavaCefChecksum(MCEFDownloadListener percentCompleteConsumer) throws IOException {
+    private boolean downloadJavaCefChecksum(MCEFDownloadListener percentCompleteConsumer) throws IOException {
         File mcefLibrariesPath = new File(System.getProperty("mcef.libraries.path"));
         File jcefBuildHashFileTemp = new File(mcefLibrariesPath, platform.getNormalizedName() + ".tar.gz.sha256.temp");
         File jcefBuildHashFile = new File(mcefLibrariesPath, platform.getNormalizedName() + ".tar.gz.sha256");
@@ -102,7 +145,7 @@ public class MCEFDownloader {
         return false;
     }
 
-    public void extractJavaCefBuild(boolean delete, MCEFDownloadListener percentCompleteConsumer) {
+    private void extractJavaCefBuild(boolean delete, MCEFDownloadListener percentCompleteConsumer) {
         File mcefLibrariesPath = new File(System.getProperty("mcef.libraries.path"));
         File tarGzArchive = new File(mcefLibrariesPath, platform.getNormalizedName() + ".tar.gz");
         extractTarGz(tarGzArchive, mcefLibrariesPath, percentCompleteConsumer);

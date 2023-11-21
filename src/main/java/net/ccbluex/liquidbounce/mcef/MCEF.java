@@ -18,9 +18,9 @@
  *     USA
  */
 
-package com.cinemamod.mcef;
+package net.ccbluex.liquidbounce.mcef;
 
-import com.cinemamod.mcef.listeners.MCEFInitListener;
+import net.ccbluex.liquidbounce.mcef.listeners.MCEFInitListener;
 import net.minecraft.client.MinecraftClient;
 import org.cef.misc.CefCursorType;
 import org.lwjgl.glfw.GLFW;
@@ -39,7 +39,7 @@ import java.util.*;
  * a modified version of java-cef (Java Chromium Embedded Framework).
  */
 public final class MCEF {
-    public static final Logger LOGGER = LoggerFactory.getLogger("MCEF");
+    public final Logger LOGGER = LoggerFactory.getLogger("MCEF");
     private static MCEFSettings settings;
     private static MCEFApp app;
     private static MCEFClient client;
@@ -70,10 +70,6 @@ public final class MCEF {
         return settings;
     }
 
-    /**
-     * This gets called by {@link com.cinemamod.mcef.mixins.CefInitMixin}.
-     * This should not be called by anything else.
-     */
     public static boolean initialize() {
         MCEF.getLogger().info("Initializing CEF on " + MCEFPlatform.getPlatform().getNormalizedName() + "...");
         if (CefUtil.init()) {

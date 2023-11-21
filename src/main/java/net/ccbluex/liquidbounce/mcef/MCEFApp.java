@@ -18,7 +18,7 @@
  *     USA
  */
 
-package com.cinemamod.mcef;
+package net.ccbluex.liquidbounce.mcef;
 
 import org.cef.CefApp;
 

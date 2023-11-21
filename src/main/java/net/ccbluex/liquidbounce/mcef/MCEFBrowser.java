@@ -18,9 +18,9 @@
  *     USA
  */
 
-package com.cinemamod.mcef;
+package net.ccbluex.liquidbounce.mcef;
 
-import com.cinemamod.mcef.listeners.MCEFCursorChangeListener;
+import net.ccbluex.liquidbounce.mcef.listeners.MCEFCursorChangeListener;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;

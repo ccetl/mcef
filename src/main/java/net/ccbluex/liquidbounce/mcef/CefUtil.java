@@ -18,9 +18,11 @@
  *     USA
  */
 
-package com.cinemamod.mcef;
+package net.ccbluex.liquidbounce.mcef;
 
-import net.minecraft.client.MinecraftClient;
+import net.ccbluex.liquidbounce.mcef.MCEF;
+import net.ccbluex.liquidbounce.mcef.MCEFPlatform;
+import net.ccbluex.liquidbounce.mcef.MCEFSettings;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.CefSettings;
@@ -58,7 +60,7 @@ final class CefUtil {
     }
 
     static boolean init() {
-        MCEFPlatform platform = MCEFPlatform.getPlatform();
+        var platform = MCEFPlatform.getPlatform();
 
         // Ensure binaries are executable
         if (platform.isLinux()) {
@@ -95,7 +97,7 @@ final class CefUtil {
 
         MCEFSettings settings = MCEF.getSettings();
 
-        CefSettings cefSettings = new CefSettings();
+        var cefSettings = new CefSettings();
         cefSettings.windowless_rendering_enabled = true;
         cefSettings.background_color = cefSettings.new ColorType(0, 255, 255, 255);
         // Set the user agent if there's one defined in MCEFSettings

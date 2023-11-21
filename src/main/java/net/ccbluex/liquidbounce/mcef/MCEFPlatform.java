@@ -18,7 +18,9 @@
  *     USA
  */
 
-package com.cinemamod.mcef;
+package net.ccbluex.liquidbounce.mcef;
+
+import java.util.Locale;
 
 public enum MCEFPlatform {
     LINUX_AMD64,

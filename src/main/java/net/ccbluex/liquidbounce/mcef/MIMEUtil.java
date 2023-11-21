@@ -1,4 +1,4 @@
-package com.cinemamod.mcef;
+package net.ccbluex.liquidbounce.mcef;
 
 public final class MIMEUtil {
     public static String mimeFromExtension(String ext) {

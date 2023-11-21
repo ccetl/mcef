@@ -18,7 +18,7 @@
  *     USA
  */
 
-package com.cinemamod.mcef;
+package net.ccbluex.liquidbounce.mcef;
 
 import com.mojang.logging.LogUtils;
 import org.cef.callback.CefCallback;

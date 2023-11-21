@@ -18,7 +18,7 @@
  *     USA
  */
 
-package com.cinemamod.mcef.internal;
+package net.ccbluex.liquidbounce.mcef.internal;
 
 public class MCEFDownloadListener {
 
