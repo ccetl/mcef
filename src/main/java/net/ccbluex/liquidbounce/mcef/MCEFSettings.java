@@ -20,23 +20,7 @@
 
 package net.ccbluex.liquidbounce.mcef;
 
-import net.minecraft.client.MinecraftClient;
-
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.Properties;
-import java.util.concurrent.CompletableFuture;
-
 public class MCEFSettings {
-    private static final Path PATH = MinecraftClient.getInstance().runDirectory
-            .toPath()
-            .resolve("config")
-            .resolve("mcef")
-            .resolve("mcef.properties");
-    private static int deleteRetries = 0;
 
     private boolean skipDownload;
     private String downloadMirror;
@@ -54,7 +38,6 @@ public class MCEFSettings {
 
     public void setSkipDownload(boolean skipDownload) {
         this.skipDownload = skipDownload;
-        saveAsync();
     }
 
     public String getDownloadMirror() {
@@ -63,7 +46,6 @@ public class MCEFSettings {
 
     public void setDownloadMirror(String downloadMirror) {
         this.downloadMirror = downloadMirror;
-        saveAsync();
     }
 
     public String getUserAgent() {
@@ -72,61 +54,6 @@ public class MCEFSettings {
 
     public void setUserAgent(String userAgent) {
         this.userAgent = userAgent;
-        saveAsync();
     }
 
-    public void saveAsync() {
-        CompletableFuture.runAsync(() -> {
-            try {
-                save();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        });
-    }
-
-    public void save() throws IOException {
-        File file = PATH.toFile();
-
-        file.getParentFile().mkdirs();
-
-        if (!file.exists()) {
-            file.createNewFile();
-        }
-
-        Properties properties = new Properties();
-        properties.setProperty("skip-download", String.valueOf(skipDownload));
-        properties.setProperty("download-mirror", String.valueOf(downloadMirror));
-        properties.setProperty("user-agent", String.valueOf(userAgent));
-
-        try (FileOutputStream output = new FileOutputStream(file)) {
-            properties.store(output, null);
-        }
-    }
-
-    public void load() throws IOException {
-        File file = PATH.toFile();
-
-        if (!file.exists()) {
-            save();
-        }
-
-        Properties properties = new Properties();
-
-        try (FileInputStream input = new FileInputStream(file)) {
-            properties.load(input);
-        }
-
-        try {
-            skipDownload = Boolean.parseBoolean(properties.getProperty("skip-download"));
-            downloadMirror = properties.getProperty("download-mirror");
-            userAgent = properties.getProperty("user-agent");
-        } catch (Exception e) {
-            // Delete and re-create the file if there was a parsing error
-            if (deleteRetries++ > 20)
-                return; // Stop gap
-            file.delete();
-            save();
-        }
-    }
 }

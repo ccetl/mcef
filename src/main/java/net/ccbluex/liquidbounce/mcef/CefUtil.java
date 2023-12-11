@@ -101,7 +101,7 @@ final class CefUtil {
         cefSettings.windowless_rendering_enabled = true;
         cefSettings.background_color = cefSettings.new ColorType(0, 255, 255, 255);
         // Set the user agent if there's one defined in MCEFSettings
-        if (!Objects.equals(settings.getUserAgent(), "null")) {
+        if (settings.getUserAgent() != null) {
             cefSettings.user_agent = settings.getUserAgent();
         } else {
             // If there is no custom defined user agent, set a user agent product.

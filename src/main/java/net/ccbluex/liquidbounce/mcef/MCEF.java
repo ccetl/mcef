@@ -61,12 +61,8 @@ public final class MCEF {
     public static MCEFSettings getSettings() {
         if (settings == null) {
             settings = new MCEFSettings();
-            try {
-                settings.load();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         }
+
         return settings;
     }
 
