@@ -52,8 +52,8 @@ public class MCEFDownloader {
         this.platform = platform;
     }
 
-    public static void downloadJcef() throws IOException {
-        setupLibraryPath();
+    public static void downloadJcef(final File directory) throws IOException {
+        setupLibraryPath(directory);
 
         var javaCefCommit = MCEF.getJavaCefCommit();
 
@@ -75,7 +75,7 @@ public class MCEFDownloader {
         MCEFDownloadListener.INSTANCE.setDone(true);
     }
 
-    private static void setupLibraryPath() throws IOException {
+    private static void setupLibraryPath(final File directory) throws IOException {
         final File mcefLibrariesDir;
 
         // Check for development environment
@@ -85,7 +85,7 @@ public class MCEFDownloader {
         if (buildDir.exists() && buildDir.isDirectory()) {
             mcefLibrariesDir = new File(buildDir, "mcef-libraries/");
         } else {
-            mcefLibrariesDir = new File("mods/mcef-libraries/");
+            mcefLibrariesDir = directory;
         }
 
         mcefLibrariesDir.mkdirs();
