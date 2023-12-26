@@ -77,7 +77,7 @@ public class MCEFDownloader {
         var checksumMatches = compareChecksum(checksumFile);
 
         if (!checksumMatches || !platformDirectory.exists()) {
-            downloadJavaCefBuild(directory, checksumFile);
+            downloadJavaCefBuild(directory);
             extractJavaCefBuild(directory);
         }
 
@@ -110,27 +110,15 @@ public class MCEFDownloader {
                 .replace("${platform}", platform.getNormalizedName());
     }
 
-    private void downloadJavaCefBuild(File mcefLibrariesPath, File checksumFile) throws IOException {
+    private void downloadJavaCefBuild(File mcefLibrariesPath) throws IOException {
         percentCompleteConsumer.setTask("Downloading JCEF");
         var tarGzArchive = new File(mcefLibrariesPath, platform.getNormalizedName() + ".tar.gz");
 
         if (tarGzArchive.exists()) {
-            // Check if the checksum matches the present .TAR.GZ, if so, we don't need to redownload
-            if (validateFileChecksum(tarGzArchive, checksumFile)) {
-                return;
-            } else {
-                tarGzArchive.delete();
-            }
+            tarGzArchive.delete();
         }
 
         downloadFile(getJavaCefDownloadUrl(), tarGzArchive, percentCompleteConsumer);
-
-        // Compare checksum with the .TAR.GZ and delete the .TAR.GZ if they don't match
-        percentCompleteConsumer.setTask("Verifying Checksum");
-        if (!validateFileChecksum(tarGzArchive, checksumFile)) {
-            tarGzArchive.delete();
-            throw new IOException("Download failed. Checksums do not match.");
-        }
     }
 
     /**
@@ -156,15 +144,6 @@ public class MCEFDownloader {
 
         tempChecksumFile.renameTo(checksumFile);
         return false;
-    }
-
-    private boolean validateFileChecksum(File checkFile, File checksumFile) throws IOException {
-        percentCompleteConsumer.setTask("Verifying Checksum");
-        // 2c4df27c64f6822e5f872bb7682ed7d52bcf698bb0c703c91475b7f2f3b04084  linux_amd64.tar.gz
-        var checksum = FileUtils.readFileToString(checksumFile, "UTF-8")
-                .split(" ")[0];
-        var checkFileChecksum = DigestUtils.sha256Hex(new FileInputStream(checkFile));
-        return checksum.equals(checkFileChecksum);
     }
 
     private void extractJavaCefBuild(File mcefLibrariesPath) {
