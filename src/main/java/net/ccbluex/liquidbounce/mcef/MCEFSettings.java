@@ -22,22 +22,12 @@ package net.ccbluex.liquidbounce.mcef;
 
 public class MCEFSettings {
 
-    private boolean skipDownload;
     private String downloadMirror;
     private String userAgent;
 
     public MCEFSettings() {
-        skipDownload = false;
         downloadMirror = "https://dl.ccbluex.net/resources";
         userAgent = null;
-    }
-
-    public boolean isSkipDownload() {
-        return skipDownload;
-    }
-
-    public void setSkipDownload(boolean skipDownload) {
-        this.skipDownload = skipDownload;
     }
 
     public String getDownloadMirror() {
