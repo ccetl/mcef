@@ -20,6 +20,8 @@
 
 package net.ccbluex.liquidbounce.mcef.internal;
 
+import net.ccbluex.liquidbounce.mcef.MCEF;
+
 public class MCEFDownloadListener {
 
     public static final MCEFDownloadListener INSTANCE = new MCEFDownloadListener();
@@ -31,6 +33,8 @@ public class MCEFDownloadListener {
     public void setTask(String name) {
         this.task = name;
         this.percent = 0;
+
+        MCEF.getLogger().info("Task: " + name + " with progress " + (percent * 100) + " %");
     }
 
     public String getTask() {

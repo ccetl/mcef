@@ -67,18 +67,47 @@ public class MCEFDownloader {
 
     public void downloadJcef(final File directory) throws IOException {
         var platformDirectory = new File(directory, MCEFPlatform.getPlatform().getNormalizedName());
-        var checksumFile = new File(directory, platform.getNormalizedName() + ".tar.gz.sha256.temp");
+        var checksumFile = new File(directory, platform.getNormalizedName() + ".tar.gz.sha256");
 
         setupLibraryPath(directory, platformDirectory);
 
         // We always download the checksum for the java-cef build
         // We will compare this with mcef-libraries/<platform>.tar.gz.sha256
         // If the contents of the files differ (or it doesn't exist locally), we know we need to redownload JCEF
-        var checksumMatches = compareChecksum(checksumFile);
+        boolean checksumMatches;
+        try {
+            checksumMatches = compareChecksum(checksumFile);
+        } catch (IOException e) {
+            MCEF.getLogger().error("Failed to compare checksum", e);
 
-        if (!checksumMatches || !platformDirectory.exists()) {
-            downloadJavaCefBuild(directory);
-            extractJavaCefBuild(directory);
+            // Assume checksum matches if we can't compare
+            checksumMatches = true;
+        }
+        var platformDirectoryExists = platformDirectory.exists();
+
+        MCEF.getLogger().info("Checksum matches: " + checksumMatches);
+        MCEF.getLogger().info("Platform directory exists: " + platformDirectoryExists);
+
+        if (!checksumMatches || !platformDirectoryExists) {
+            try {
+                MCEF.getLogger().info("Downloading JCEF...");
+                downloadJavaCefBuild(directory);
+
+                if (platformDirectoryExists && platformDirectory.delete()) {
+                    MCEF.getLogger().info("Platform directory already present, deleting due to checksum mismatch");
+                }
+
+                MCEF.getLogger().info("Extracting JCEF...");
+                extractJavaCefBuild(directory);
+
+
+            } catch (Exception e) {
+                if (directory.exists() && directory.delete()) {
+                    MCEF.getLogger().info("Failed to download JCEF, deleting directory due to exception");
+                }
+
+                throw new RuntimeException("Failed to download JCEF", e);
+            }
         }
 
         MCEFDownloadListener.INSTANCE.setDone(true);
@@ -114,8 +143,8 @@ public class MCEFDownloader {
         percentCompleteConsumer.setTask("Downloading JCEF");
         var tarGzArchive = new File(mcefLibrariesPath, platform.getNormalizedName() + ".tar.gz");
 
-        if (tarGzArchive.exists()) {
-            tarGzArchive.delete();
+        if (tarGzArchive.exists() && tarGzArchive.delete()) {
+            MCEF.getLogger().info(".tar.gz archive already present, deleting due to checksum mismatch");
         }
 
         downloadFile(getJavaCefDownloadUrl(), tarGzArchive, percentCompleteConsumer);
@@ -135,7 +164,7 @@ public class MCEFDownloader {
 
         if (checksumFile.exists()) {
             boolean sameContent = FileUtils.contentEquals(checksumFile, tempChecksumFile);
-            MCEF.getLogger().info("Checksums match: " + sameContent);
+
             if (sameContent) {
                 tempChecksumFile.delete();
                 return true;
