@@ -160,7 +160,9 @@ public class MCEFDownloader {
 
     private boolean validateFileChecksum(File checkFile, File checksumFile) throws IOException {
         percentCompleteConsumer.setTask("Verifying Checksum");
-        var checksum = FileUtils.readFileToString(checksumFile, "UTF-8");
+        // 2c4df27c64f6822e5f872bb7682ed7d52bcf698bb0c703c91475b7f2f3b04084  linux_amd64.tar.gz
+        var checksum = FileUtils.readFileToString(checksumFile, "UTF-8")
+                .split(" ")[0];
         var checkFileChecksum = DigestUtils.sha256Hex(new FileInputStream(checkFile));
         return checksum.equals(checkFileChecksum);
     }
