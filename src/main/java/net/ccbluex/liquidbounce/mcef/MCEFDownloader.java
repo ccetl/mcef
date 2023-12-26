@@ -115,7 +115,12 @@ public class MCEFDownloader {
         var tarGzArchive = new File(mcefLibrariesPath, platform.getNormalizedName() + ".tar.gz");
 
         if (tarGzArchive.exists()) {
-            tarGzArchive.delete();
+            // Check if the checksum matches the present .TAR.GZ, if so, we don't need to redownload
+            if (validateFileChecksum(tarGzArchive, checksumFile)) {
+                return;
+            } else {
+                tarGzArchive.delete();
+            }
         }
 
         downloadFile(getJavaCefDownloadUrl(), tarGzArchive, percentCompleteConsumer);
