@@ -187,6 +187,12 @@ public final class MCEF {
             return System.getProperty("mcef.java.cef.commit");
         }
 
+        // Find jcef.commit file in the JAR root
+        URL commitResource = MCEF.class.getClassLoader().getResource("jcef.commit");
+        if (commitResource != null) {
+            return new BufferedReader(new InputStreamReader(commitResource.openStream())).readLine();
+        }
+
         // Try to get from resources (if loading from a jar)
         Enumeration<URL> resources = MCEF.class.getClassLoader().getResources("META-INF/MANIFEST.MF");
         Map<String, String> commits = new HashMap<>(1);

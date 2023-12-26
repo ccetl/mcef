@@ -30,6 +30,17 @@ tasks.register('cloneJcef', Exec) {
     commandLine 'git', 'submodule', 'update', '--init', '--recursive', 'java-cef'
 }
 
+tasks.register('generateJcefCommitFile') {
+    doLast {
+        def commitHash = getCheckedOutGitCommitHash(project)
+        if (!commitHash.isEmpty()) {
+            file("$buildDir/jcef.commit").text = commitHash
+        } else {
+            throw new GradleException("Unable to determine JCEF commit hash.")
+        }
+    }
+}
+
 version = project.mod_version
 group = project.maven_group
 
@@ -70,6 +81,7 @@ processResources {
     inputs.property "version", project.version
 
     dependsOn processJcefResources
+    dependsOn generateJcefCommitFile
 }
 
 
@@ -95,6 +107,7 @@ jar {
     from("LICENSE") {
         rename { "${it}_${project.base.archivesName.get()}"}
     }
+    from("$buildDir/jcef.commit")
 }
 
 remapJar {
