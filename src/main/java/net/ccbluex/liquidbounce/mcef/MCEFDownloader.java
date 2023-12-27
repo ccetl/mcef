@@ -21,7 +21,6 @@
 package net.ccbluex.liquidbounce.mcef;
 
 import net.ccbluex.liquidbounce.mcef.internal.MCEFDownloadListener;
-import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
@@ -65,7 +64,7 @@ public class MCEFDownloader {
                 MCEFPlatform.getPlatform());
     }
 
-    public void downloadJcef(final File directory) throws IOException {
+    public boolean requiresDownload(final File directory) throws IOException {
         var platformDirectory = new File(directory, MCEFPlatform.getPlatform().getNormalizedName());
         var checksumFile = new File(directory, platform.getNormalizedName() + ".tar.gz.sha256");
 
@@ -88,26 +87,27 @@ public class MCEFDownloader {
         MCEF.getLogger().info("Checksum matches: " + checksumMatches);
         MCEF.getLogger().info("Platform directory exists: " + platformDirectoryExists);
 
-        if (!checksumMatches || !platformDirectoryExists) {
-            try {
-                MCEF.getLogger().info("Downloading JCEF...");
-                downloadJavaCefBuild(directory);
+        return !checksumMatches || !platformDirectoryExists;
+    }
 
-                if (platformDirectoryExists && platformDirectory.delete()) {
-                    MCEF.getLogger().info("Platform directory already present, deleting due to checksum mismatch");
-                }
+    public void downloadJcef(final File directory) throws IOException {
+        var platformDirectory = new File(directory, MCEFPlatform.getPlatform().getNormalizedName());
 
-                MCEF.getLogger().info("Extracting JCEF...");
-                extractJavaCefBuild(directory);
+        try {
+            MCEF.getLogger().info("Downloading JCEF...");
+            downloadJavaCefBuild(directory);
 
-
-            } catch (Exception e) {
-                if (directory.exists() && directory.delete()) {
-                    MCEF.getLogger().info("Failed to download JCEF, deleting directory due to exception");
-                }
-
-                throw new RuntimeException("Failed to download JCEF", e);
+            if (platformDirectory.exists() && platformDirectory.delete()) {
+                MCEF.getLogger().info("Platform directory already present, deleting due to checksum mismatch");
             }
+
+            MCEF.getLogger().info("Extracting JCEF...");
+            extractJavaCefBuild(directory);
+        } catch (final Exception e) {
+            if (directory.exists() && directory.delete()) {
+                MCEF.getLogger().info("Failed to download JCEF, deleting directory due to exception");
+            }
+            throw e;
         }
 
         MCEFDownloadListener.INSTANCE.setDone(true);
