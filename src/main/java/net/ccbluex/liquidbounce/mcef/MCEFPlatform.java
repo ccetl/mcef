@@ -33,7 +33,7 @@ public enum MCEFPlatform {
     MACOS_ARM64;
 
     public String getNormalizedName() {
-        return name().toLowerCase();
+        return name().toLowerCase(Locale.ENGLISH);
     }
 
     public boolean isLinux() {
