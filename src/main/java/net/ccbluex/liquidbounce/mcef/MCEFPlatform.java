@@ -20,6 +20,8 @@
 
 package net.ccbluex.liquidbounce.mcef;
 
+import org.apache.commons.exec.OS;
+
 import java.util.Locale;
 
 public enum MCEFPlatform {
@@ -47,29 +49,28 @@ public enum MCEFPlatform {
     }
 
     public static MCEFPlatform getPlatform() {
-        String os = System.getProperty("os.name").toLowerCase(Locale.US);
-        String arch = System.getProperty("os.arch").toLowerCase(Locale.US);
-
-        if (os.startsWith("linux")) {
-            if (arch.equals("amd64")) {
-                return LINUX_AMD64;
-            } else if (arch.equals("aarch64")) {
-                return LINUX_ARM64;
-            }
-        } else if (os.startsWith("windows")) {
-            if (arch.equals("amd64")) {
+        if (OS.isFamilyWindows()) {
+            if (OS.isArch("amd64")) {
                 return WINDOWS_AMD64;
-            } else if (arch.equals("aarch64")) {
+            } else if (OS.isArch("aarch64")) {
                 return WINDOWS_ARM64;
             }
-        } else if (os.startsWith("mac os x")) {
-            if (arch.equals("x86_64")) {
+        } else if (OS.isFamilyMac()) {
+            if (OS.isArch("x86_64")) {
                 return MACOS_AMD64;
-            } else if (arch.equals("aarch64")) {
+            } else if (OS.isArch("aarch64")) {
                 return MACOS_ARM64;
+            }
+        } else if (OS.isFamilyUnix()) {
+            if (OS.isArch("amd64")) {
+                return LINUX_AMD64;
+            } else if (OS.isArch("aarch64")) {
+                return LINUX_ARM64;
             }
         }
 
+        String os = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
+        String arch = System.getProperty("os.arch").toLowerCase(Locale.ENGLISH);
         throw new RuntimeException("Unsupported platform: " + os + " " + arch);
     }
 }
