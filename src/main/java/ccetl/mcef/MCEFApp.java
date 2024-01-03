@@ -18,9 +18,12 @@
  *     USA
  */
 
-package net.ccbluex.liquidbounce.mcef.listeners;
+package ccetl.mcef;
 
-@FunctionalInterface
-public interface MCEFCursorChangeListener {
-    void onCursorChange(int cursorID);
+import org.cef.CefApp;
+
+/**
+ * A wrapper around {@link CefApp}
+ */
+public record MCEFApp(CefApp handle) {
 }

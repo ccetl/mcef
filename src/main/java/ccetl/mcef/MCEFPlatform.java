@@ -18,7 +18,7 @@
  *     USA
  */
 
-package net.ccbluex.liquidbounce.mcef;
+package ccetl.mcef;
 
 import org.apache.commons.exec.OS;
 
@@ -33,7 +33,7 @@ public enum MCEFPlatform {
     MACOS_ARM64;
 
     public String getNormalizedName() {
-        return name().toLowerCase(Locale.ENGLISH);
+        return name().toLowerCase(Locale.ROOT);
     }
 
     public boolean isLinux() {
@@ -48,6 +48,7 @@ public enum MCEFPlatform {
         return (this == MACOS_AMD64 || this == MACOS_ARM64);
     }
 
+    @SuppressWarnings("SpellCheckingInspection")
     public static MCEFPlatform getPlatform() {
         if (OS.isFamilyWindows()) {
             if (OS.isArch("amd64")) {
@@ -69,8 +70,8 @@ public enum MCEFPlatform {
             }
         }
 
-        String os = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
-        String arch = System.getProperty("os.arch").toLowerCase(Locale.ENGLISH);
+        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
+        String arch = System.getProperty("os.arch").toLowerCase(Locale.ROOT);
         throw new RuntimeException("Unsupported platform: " + os + " " + arch);
     }
 }

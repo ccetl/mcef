@@ -18,43 +18,9 @@
  *     USA
  */
 
-package net.ccbluex.liquidbounce.mcef.internal;
+package ccetl.mcef.listeners;
 
-import net.ccbluex.liquidbounce.mcef.MCEF;
-
-public class MCEFDownloadListener {
-
-    public static final MCEFDownloadListener INSTANCE = new MCEFDownloadListener();
-
-    private String task;
-    private float percent;
-    private boolean done;
-
-    public void setTask(String name) {
-        this.task = name;
-        this.percent = 0;
-
-        MCEF.getLogger().info("Task: " + name + " with progress " + (percent * 100) + " %");
-    }
-
-    public String getTask() {
-        return task;
-    }
-
-    public void setProgress(float percent) {
-        this.percent = percent;
-    }
-
-    public float getProgress() {
-        return percent;
-    }
-
-    public void setDone(boolean done) {
-        this.done = done;
-    }
-
-    public boolean isDone() {
-        return done;
-    }
-
+@FunctionalInterface
+public interface MCEFCursorChangeListener {
+    void onCursorChange(int cursorID);
 }

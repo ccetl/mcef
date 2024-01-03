@@ -18,21 +18,13 @@
  *     USA
  */
 
-package net.ccbluex.liquidbounce.mcef;
+package ccetl.mcef.listeners;
 
-import org.cef.CefApp;
-
-/**
- * A wrapper around {@link CefApp}
- */
-public class MCEFApp {
-    private final CefApp handle;
-
-    public MCEFApp(CefApp handle) {
-        this.handle = handle;
-    }
-
-    public CefApp getHandle() {
-        return handle;
-    }
+@FunctionalInterface
+public interface MCEFInitListener {
+    /**
+     * @param successful whether MCEF was successfully initialized
+     *                   If this is true, that means the user's platform is supported, natives downloaded registered properly, etc
+     */
+    void onInit(boolean successful);
 }

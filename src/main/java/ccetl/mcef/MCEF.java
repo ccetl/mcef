@@ -18,14 +18,12 @@
  *     USA
  */
 
-package net.ccbluex.liquidbounce.mcef;
+package ccetl.mcef;
 
-import net.ccbluex.liquidbounce.mcef.listeners.MCEFInitListener;
-import net.minecraft.client.MinecraftClient;
+import ccetl.mcef.listeners.MCEFInitListener;
 import org.cef.misc.CefCursorType;
+import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -33,13 +31,22 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * An API to create Chromium web browsers in Minecraft. Uses
  * a modified version of java-cef (Java Chromium Embedded Framework).
  */
 public final class MCEF {
-    public static final Logger LOGGER = LoggerFactory.getLogger("MCEF");
+    /**
+     * Supplies the lwjgl functions with the needed window.
+     */
+    private static Supplier<Long> windowSupplier;
+    /**
+     * Submits a {@link Runnable} for execution.
+     */
+    private static Consumer<Runnable> submitter;
     private static MCEFSettings settings;
     private static MCEFApp app;
     private static MCEFClient client;
@@ -48,10 +55,6 @@ public final class MCEF {
 
     public static void scheduleForInit(MCEFInitListener task) {
         awaitingInit.add(task);
-    }
-
-    public static Logger getLogger() {
-        return LOGGER;
     }
 
     /**
@@ -66,17 +69,20 @@ public final class MCEF {
         return settings;
     }
 
-    public static boolean initialize() {
-        MCEF.getLogger().info("Initializing CEF on " + MCEFPlatform.getPlatform().getNormalizedName() + "...");
+    public static boolean initialize(Supplier<Long> windowSupplier, Consumer<Runnable> submitter, @Nullable Runnable exit) {
+        MCEFLogger.getLogger().info("Initializing CEF on " + MCEFPlatform.getPlatform().getNormalizedName() + "...");
         if (CefUtil.init()) {
+            MCEF.windowSupplier = windowSupplier;
+            MCEF.submitter = submitter;
+
             app = new MCEFApp(CefUtil.getCefApp());
             client = new MCEFClient(CefUtil.getCefClient());
 
             awaitingInit.forEach(t -> t.onInit(true));
             awaitingInit.clear();
-            MCEF.getLogger().info("Chromium Embedded Framework initialized");
+            MCEFLogger.getLogger().info("Chromium Embedded Framework initialized");
 
-            app.getHandle().registerSchemeHandlerFactory(
+            app.handle().registerSchemeHandlerFactory(
                     "mod", "",
                     (browser, frame, url, request) -> new ModScheme(request.getURL())
             );
@@ -89,7 +95,9 @@ public final class MCEF {
             } else if (platform.isMacOS()) {
                 CefUtil.getCefApp().macOSTerminationRequestRunnable = () -> {
                     shutdown();
-                    MinecraftClient.getInstance().stop();
+                    if (exit != null) {
+                        exit.run();
+                    }
                 };
             }
 
@@ -97,7 +105,7 @@ public final class MCEF {
         }
         awaitingInit.forEach(t -> t.onInit(false));
         awaitingInit.clear();
-        MCEF.getLogger().info("Could not initialize Chromium Embedded Framework");
+        MCEFLogger.getLogger().info("Could not initialize Chromium Embedded Framework");
         shutdown();
         return false;
     }
@@ -127,7 +135,7 @@ public final class MCEF {
      */
     public static MCEFBrowser createBrowser(String url, boolean transparent) {
         assertInitialized();
-        MCEFBrowser browser = new MCEFBrowser(client, url, transparent);
+        MCEFBrowser browser = new MCEFBrowser(client, windowSupplier, submitter, url, transparent);
         browser.setCloseAllowed();
         browser.createImmediately();
         return browser;
@@ -141,7 +149,7 @@ public final class MCEF {
      */
     public static MCEFBrowser createBrowser(String url, boolean transparent, int width, int height) {
         assertInitialized();
-        MCEFBrowser browser = new MCEFBrowser(client, url, transparent);
+        MCEFBrowser browser = new MCEFBrowser(client, windowSupplier, submitter, url, transparent);
         browser.setCloseAllowed();
         browser.createImmediately();
         browser.resize(width, height);
@@ -171,15 +179,15 @@ public final class MCEF {
      * Check if MCEF has been initialized, throws a {@link RuntimeException} if not.
      */
     private static void assertInitialized() {
-        if (!isInitialized())
+        if (!isInitialized()) {
             throw new RuntimeException("Chromium Embedded Framework was never initialized.");
+        }
     }
 
     /**
      * Get the git commit hash of the java-cef code (either from MANIFEST.MF or from the git repo on-disk if in a
      * development environment). Used for downloading the java-cef release.
      * @return The git commit hash of java-cef
-     * @throws IOException
      */
     public static String getJavaCefCommit() throws IOException {
         // First check system property
@@ -231,10 +239,13 @@ public final class MCEF {
      * Helper method to get a GLFW cursor handle for the given {@link CefCursorType} cursor type
      */
     static long getGLFWCursorHandle(CefCursorType cursorType) {
-        if (CEF_TO_GLFW_CURSORS.containsKey(cursorType)) return CEF_TO_GLFW_CURSORS.get(cursorType);
+        if (CEF_TO_GLFW_CURSORS.containsKey(cursorType)) {
+            return CEF_TO_GLFW_CURSORS.get(cursorType);
+        }
         long glfwCursorHandle = GLFW.glfwCreateStandardCursor(cursorType.glfwId);
         CEF_TO_GLFW_CURSORS.put(cursorType, glfwCursorHandle);
         return glfwCursorHandle;
     }
+
     private static final HashMap<CefCursorType, Long> CEF_TO_GLFW_CURSORS = new HashMap<>();
 }

@@ -1,10 +1,10 @@
-package net.ccbluex.liquidbounce.mcef;
+package ccetl.mcef;
 
 public final class MIMEUtil {
     public static String mimeFromExtension(String ext) {
         // TODO: might want to port https://github.com/CinemaMod/mcef/blob/master-1.19.2/src/main/resources/assets/mcef/mime.types
         //       adding cases to the switch isn't the most convenient thing
-//        ext = ext.toLowerCase(Locale.US);
+//        ext = ext.toLowerCase(Locale.ROOT);
 //        String ret = mimeTypeMap.get(ext);
 //        if (ret != null)
 //            return ret;

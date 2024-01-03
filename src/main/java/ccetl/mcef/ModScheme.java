@@ -18,16 +18,14 @@
  *     USA
  */
 
-package net.ccbluex.liquidbounce.mcef;
+package ccetl.mcef;
 
-import com.mojang.logging.LogUtils;
 import org.cef.callback.CefCallback;
 import org.cef.handler.CefResourceHandler;
 import org.cef.misc.IntRef;
 import org.cef.misc.StringRef;
 import org.cef.network.CefRequest;
 import org.cef.network.CefResponse;
-import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,8 +42,6 @@ public class ModScheme implements CefResourceHandler {
         this.url = url;
     }
 
-    private static final Logger LOGGER = LogUtils.getLogger();
-
     @Override
     public boolean processRequest(CefRequest cefRequest, CefCallback cefCallback) {
         String url = this.url.substring("mod://".length());
@@ -59,25 +55,26 @@ public class ModScheme implements CefResourceHandler {
         String mod = removeSlashes(url.substring(0, pos));
         String loc = removeSlashes(url.substring(pos + 1));
 
-        if (mod.length() <= 0 || loc.length() <= 0 || mod.charAt(0) == '.' || loc.charAt(0) == '.') {
-            LOGGER.warn("Invalid URL " + url);
+        if (mod.isEmpty() || loc.isEmpty() || mod.charAt(0) == '.' || loc.charAt(0) == '.') {
+            MCEFLogger.getLogger().warn("Invalid URL " + url);
             cefCallback.cancel();
             return false;
         }
 
         // TODO: this may or may not require forge/fabric specific code?
-//        is = ModList.get().getModContainerById(mod).get().getMod().getClass().getResourceAsStream("/assets/" + mod.toLowerCase(Locale.US) + "/html/" + loc.toLowerCase());
-        is = ModScheme.class.getClassLoader().getResourceAsStream("/assets/" + mod.toLowerCase(Locale.US) + "/html/" + loc.toLowerCase(Locale.US));
+//        is = ModList.get().getModContainerById(mod).get().getMod().getClass().getResourceAsStream("/assets/" + mod.toLowerCase(Locale.ROOT) + "/html/" + loc.toLowerCase());
+        is = ModScheme.class.getClassLoader().getResourceAsStream("/assets/" + mod.toLowerCase(Locale.ROOT) + "/html/" + loc.toLowerCase(Locale.ROOT));
         if (is == null) {
-            LOGGER.warn("Resource " + url + " NOT found!");
+            MCEFLogger.getLogger().warn("Resource " + url + " NOT found!");
             cefCallback.cancel();
             return false; // TODO: 404?
         }
 
         contentType = null;
         pos = loc.lastIndexOf('.');
-        if (pos >= 0 && pos < loc.length() - 2)
+        if (pos >= 0 && pos < loc.length() - 2) {
             contentType = MIMEUtil.mimeFromExtension(loc.substring(pos + 1));
+        }
 
         cefCallback.Continue();
         return true;

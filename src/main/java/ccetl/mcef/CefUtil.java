@@ -18,11 +18,8 @@
  *     USA
  */
 
-package net.ccbluex.liquidbounce.mcef;
+package ccetl.mcef;
 
-import net.ccbluex.liquidbounce.mcef.MCEF;
-import net.ccbluex.liquidbounce.mcef.MCEFPlatform;
-import net.ccbluex.liquidbounce.mcef.MCEFSettings;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.CefSettings;
@@ -32,7 +29,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -60,7 +56,7 @@ final class CefUtil {
     }
 
     static boolean init() {
-        var platform = MCEFPlatform.getPlatform();
+        MCEFPlatform platform = MCEFPlatform.getPlatform();
 
         // Ensure binaries are executable
         if (platform.isLinux()) {
@@ -84,6 +80,7 @@ final class CefUtil {
                 "--enable-widevine-cdm", // https://canary.discord.com/channels/985588552735809696/992495232035868682/1151704612924039218
                 "--off-screen-rendering-enabled",
                 "--off-screen-frame-rate=60",
+                //"--disable-gpu"
 
                 // TODO: should probably make this configurable
                 //       based off this page: https://magpcss.org/ceforum/viewtopic.php?f=6&t=11672
@@ -97,7 +94,7 @@ final class CefUtil {
 
         MCEFSettings settings = MCEF.getSettings();
 
-        var cefSettings = new CefSettings();
+        CefSettings cefSettings = new CefSettings();
         cefSettings.windowless_rendering_enabled = true;
         cefSettings.background_color = cefSettings.new ColorType(0, 255, 255, 255);
         // Set the user agent if there's one defined in MCEFSettings

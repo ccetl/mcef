@@ -18,12 +18,11 @@
  *     USA
  */
 
-package net.ccbluex.liquidbounce.mcef;
+package ccetl.mcef;
 
-import net.ccbluex.liquidbounce.mcef.listeners.MCEFCursorChangeListener;
+import ccetl.mcef.listeners.MCEFCursorChangeListener;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.MinecraftClient;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefBrowserOsr;
 import org.cef.callback.CefDragData;
@@ -35,6 +34,8 @@ import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
 import java.nio.ByteBuffer;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
@@ -49,6 +50,8 @@ public class MCEFBrowser extends CefBrowserOsr {
      * The renderer for the browser.
      */
     private final MCEFRenderer renderer;
+    private final Supplier<Long> windowSupplier;
+    private final Consumer<Runnable> submitter;
     /**
      * Stores information about drag & drop.
      */
@@ -83,12 +86,14 @@ public class MCEFBrowser extends CefBrowserOsr {
     protected boolean showPopup = false;
     protected boolean popupDrawn = false;
 
-    public MCEFBrowser(MCEFClient client, String url, boolean transparent) {
+    public MCEFBrowser(MCEFClient client, Supplier<Long> windowSupplier, Consumer<Runnable> submitter, String url, boolean transparent) {
         super(client.getHandle(), url, transparent, null);
+        this.windowSupplier = windowSupplier;
+        this.submitter = submitter;
         renderer = new MCEFRenderer(transparent);
         cursorChangeListener = (cefCursorID) -> setCursor(CefCursorType.fromId(cefCursorID));
 
-        MinecraftClient.getInstance().submit(renderer::initialize);
+        submitter.accept(renderer::initialize);
     }
 
     public MCEFRenderer getRenderer() {
@@ -129,9 +134,7 @@ public class MCEFBrowser extends CefBrowserOsr {
         super.onPopupShow(browser, show);
         showPopup = show;
         if (!show) {
-            MinecraftClient.getInstance().submit(() -> {
-                onPaint(browser, false, new Rectangle[]{popupSize}, graphics, lastWidth, lastHeight);
-            });
+            submitter.accept(() -> onPaint(browser, false, new Rectangle[]{popupSize}, graphics, lastWidth, lastHeight));
             popupSize = null;
             popupDrawn = false;
             popupGraphics = null;
@@ -420,7 +423,7 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     @Override
     protected void finalize() throws Throwable {
-        MinecraftClient.getInstance().submit(renderer::cleanup);
+        submitter.accept(renderer::cleanup);
         super.finalize();
     }
 
@@ -434,10 +437,10 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     public void setCursor(CefCursorType cursorType) {
         if (cursorType == CefCursorType.NONE) {
-            GLFW.glfwSetInputMode(MinecraftClient.getInstance().getWindow().getHandle(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+            GLFW.glfwSetInputMode(windowSupplier.get(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
         } else {
-            GLFW.glfwSetInputMode(MinecraftClient.getInstance().getWindow().getHandle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            GLFW.glfwSetCursor(MinecraftClient.getInstance().getWindow().getHandle(), MCEF.getGLFWCursorHandle(cursorType));
+            GLFW.glfwSetInputMode(windowSupplier.get(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            GLFW.glfwSetCursor(windowSupplier.get(), MCEF.getGLFWCursorHandle(cursorType));
         }
     }
 }

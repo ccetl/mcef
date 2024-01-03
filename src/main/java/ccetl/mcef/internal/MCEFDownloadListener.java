@@ -18,13 +18,41 @@
  *     USA
  */
 
-package net.ccbluex.liquidbounce.mcef.listeners;
+package ccetl.mcef.internal;
 
-@FunctionalInterface
-public interface MCEFInitListener {
-    /**
-     * @param successful whether MCEF was successfully initialized
-     *                   If this is true, that means the user's platform is supported, natives downloaded registered properly, etc
-     */
-    void onInit(boolean successful);
+import ccetl.mcef.MCEFLogger;
+
+public class MCEFDownloadListener {
+    public static final MCEFDownloadListener INSTANCE = new MCEFDownloadListener();
+
+    private String task;
+    private float percent;
+    private boolean done;
+
+    public void setTask(String name) {
+        this.task = name;
+        this.percent = 0;
+
+        MCEFLogger.getLogger().info("Task: " + name + " with progress " + (percent * 100) + " %");
+    }
+
+    public String getTask() {
+        return task;
+    }
+
+    public void setProgress(float percent) {
+        this.percent = percent;
+    }
+
+    public float getProgress() {
+        return percent;
+    }
+
+    public void setDone(boolean done) {
+        this.done = done;
+    }
+
+    public boolean isDone() {
+        return done;
+    }
 }
