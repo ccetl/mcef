@@ -144,6 +144,12 @@ publishing {
         mavenJava(MavenPublication) {
             from components.java
         }
+
+        pom {
+            dependencies {
+                exclude 'net.fabricmc:fabric-loader'
+            }
+        }
     }
 
     repositories {
