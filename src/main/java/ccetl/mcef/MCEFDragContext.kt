@@ -17,17 +17,36 @@
  *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
  *     USA
  */
+package ccetl.mcef
 
-package ccetl.mcef;
+import org.cef.callback.CefDragData
+import org.cef.misc.CefCursorType
 
-import org.cef.callback.CefDragData;
-import org.cef.misc.CefCursorType;
+class MCEFDragContext {
+    /**
+     * Gets the [CefDragData] of the current drag operation
+     *
+     * @return the current drag operation's data
+     */
+    var dragData: CefDragData? = null
+        private set
 
-public class MCEFDragContext {
-    private CefDragData dragData = null;
-    private int dragMask = 0;
-    private int cursorOverride = -1;
-    private int actualCursor = -1;
+    /**
+     * Gets the allowed operation mask for this drag event
+     *
+     * @return -1 for any, 0 for none, 1 for copy (TODO: others)
+     */
+    var mask = 0
+        private set
+    private var cursorOverride = -1
+
+    /**
+     * Gets the browser-set cursor
+     *
+     * @return the cursor that has been set by the browser, disregarding drag operations
+     */
+    var actualCursor = -1
+        private set
 
     /**
      * Used to prevent re-selecting stuff while dragging
@@ -36,8 +55,8 @@ public class MCEFDragContext {
      * @param btnMask the actual mask
      * @return a mask modified based on if the user is dragging
      */
-    public int getVirtualModifiers(int btnMask) {
-        return dragData != null ? 0 : btnMask;
+    fun getVirtualModifiers(btnMask: Int): Int {
+        return if (dragData != null) 0 else btnMask
     }
 
     /**
@@ -45,84 +64,45 @@ public class MCEFDragContext {
      * Instead the cursor should change based on what action would be performed when they release at the given location
      * However, the browser-set cursor also needs to be tracked, so this handles that as well
      *
-     * @param cursorType the actual cursor type (should be the result of {@link MCEFDragContext#getActualCursor()} if you're just trying to see the current cursor)
+     * @param cursorType the actual cursor type (should be the result of [MCEFDragContext.actualCursor] if you're just trying to see the current cursor)
      * @return the drag operation modified cursor if dragging, or the actual cursor if not
      */
-    public int getVirtualCursor(int cursorType) {
-        actualCursor = cursorType;
-        if (cursorOverride != -1) cursorType = cursorOverride;
-        return cursorType;
+    fun getVirtualCursor(cursorType: Int): Int {
+        var cursorType1 = cursorType
+        actualCursor = cursorType
+        if (cursorOverride != -1) cursorType1 = cursorOverride
+        return cursorType1
     }
 
-    /**
-     * Checks if a drag operation is currently happening
-     *
-     * @return true if the user is dragging, elsewise false
-     */
-    public boolean isDragging() {
-        return dragData != null;
+    val isDragging: Boolean
+        /**
+         * Checks if a drag operation is currently happening
+         *
+         * @return true if the user is dragging, elsewise false
+         */
+        get() = dragData != null
+
+    fun startDragging(dragData: CefDragData, mask: Int) {
+        this.dragData = dragData
+        this.mask = mask
     }
 
-    /**
-     * Gets the {@link CefDragData} of the current drag operation
-     *
-     * @return the current drag operation's data
-     */
-    public CefDragData getDragData() {
-        return dragData;
+    fun stopDragging() {
+        dragData!!.dispose()
+        dragData = null
+        mask = 0
+        cursorOverride = -1
     }
 
-    /**
-     * Gets the allowed operation mask for this drag event
-     *
-     * @return -1 for any, 0 for none, 1 for copy (TODO: others)
-     */
-    public int getMask() {
-        return dragMask;
-    }
-
-    /**
-     * Gets the browser-set cursor
-     *
-     * @return the cursor that has been set by the browser, disregarding drag operations
-     */
-    public int getActualCursor() {
-        return actualCursor;
-    }
-
-    public void startDragging(CefDragData dragData, int mask) {
-        this.dragData = dragData;
-        this.dragMask = mask;
-    }
-
-    public void stopDragging() {
-        dragData.dispose();
-        dragData = null;
-        dragMask = 0;
-        cursorOverride = -1;
-    }
-
-    public boolean updateCursor(int operation) {
-        if (dragData == null) return false;
-
-        int currentOverride = cursorOverride;
-
-        switch (operation) {
-            case 0:
-                cursorOverride = CefCursorType.NO_DROP.ordinal();
-                break;
-            case 1:
-                cursorOverride = CefCursorType.COPY.ordinal();
-                break;
-            // TODO: this is a guess, based off https://magpcss.org/ceforum/apidocs3/projects/(default)/cef_drag_operations_mask_t.html
-            // not sure if it's correct
-            case 16:
-                cursorOverride = CefCursorType.MOVE.ordinal();
-                break;
-            default: // TODO: I'm not sure of the numbers for these
-                cursorOverride = -1;
+    fun updateCursor(operation: Int): Boolean {
+        if (dragData == null) return false
+        val currentOverride = cursorOverride
+        cursorOverride = when (operation) {
+            0 -> CefCursorType.NO_DROP.ordinal
+            1 -> CefCursorType.COPY.ordinal
+            16 -> CefCursorType.MOVE.ordinal
+            else -> -1
         }
-
-        return currentOverride != cursorOverride && cursorOverride != -1;
+        return currentOverride != cursorOverride && cursorOverride != -1
     }
 }

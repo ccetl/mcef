@@ -18,54 +18,15 @@
  *     USA
  */
 
-package ccetl.mcef;
+package ccetl.mcef
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*
 
-public class MCEFSettings {
-    private String downloadMirror;
-    private String userAgent;
-    private Map<MCEFPlatform, String> checkSums;
-    private boolean checkDownloads;
-
-
-    public MCEFSettings() {
-        downloadMirror = "https://dl.ccbluex.net/resources";
-        userAgent = null;
-        checkSums = new HashMap<>();
-        checkSums.put(MCEFPlatform.WINDOWS_AMD64, "2fd5fde6738a293c732cf7b97925a2e4ea34e33da3404a0548e6356830691a13");
-    }
-
-    public String getDownloadMirror() {
-        return downloadMirror;
-    }
-
-    public void setDownloadMirror(String downloadMirror) {
-        this.downloadMirror = downloadMirror;
-    }
-
-    public String getUserAgent() {
-        return userAgent;
-    }
-
-    public void setUserAgent(String userAgent) {
-        this.userAgent = userAgent;
-    }
-
-    public Map<MCEFPlatform, String> getCheckSums() {
-        return checkSums;
-    }
-
-    public void setCheckSums(Map<MCEFPlatform, String> checkSums) {
-        this.checkSums = checkSums;
-    }
-
-    public boolean isCheckDownloads() {
-        return checkDownloads;
-    }
-
-    public void setCheckDownloads(boolean checkDownloads) {
-        this.checkDownloads = checkDownloads;
-    }
+class MCEFSettings {
+    @JvmField
+    var downloadMirror: String? = null
+    @JvmField
+    var userAgent: String? = null
+    var checkSums: Map<MCEFPlatform, String> = EnumMap(MCEFPlatform::class.java)
+    var isCheckDownloads = false
 }

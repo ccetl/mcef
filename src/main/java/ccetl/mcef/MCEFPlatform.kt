@@ -18,13 +18,11 @@
  *     USA
  */
 
-package ccetl.mcef;
+package ccetl.mcef
 
-import org.apache.commons.exec.OS;
+import org.apache.commons.exec.OS
 
-import java.util.Locale;
-
-public enum MCEFPlatform {
+enum class MCEFPlatform {
     LINUX_AMD64,
     LINUX_ARM64,
     WINDOWS_AMD64,
@@ -32,46 +30,41 @@ public enum MCEFPlatform {
     MACOS_AMD64,
     MACOS_ARM64;
 
-    public String getNormalizedName() {
-        return name().toLowerCase(Locale.ROOT);
-    }
+    val normalizedName: String
+        get() = name.lowercase()
+    val isLinux: Boolean
+        get() = this == LINUX_AMD64 || this == LINUX_ARM64
+    val isWindows: Boolean
+        get() = this == WINDOWS_AMD64 || this == WINDOWS_ARM64
+    val isMacOS: Boolean
+        get() = this == MACOS_AMD64 || this == MACOS_ARM64
 
-    public boolean isLinux() {
-        return (this == LINUX_AMD64 || this == LINUX_ARM64);
-    }
-
-    public boolean isWindows() {
-        return (this == WINDOWS_AMD64 || this == WINDOWS_ARM64);
-    }
-
-    public boolean isMacOS() {
-        return (this == MACOS_AMD64 || this == MACOS_ARM64);
-    }
-
-    @SuppressWarnings("SpellCheckingInspection")
-    public static MCEFPlatform getPlatform() {
-        if (OS.isFamilyWindows()) {
-            if (OS.isArch("amd64")) {
-                return WINDOWS_AMD64;
-            } else if (OS.isArch("aarch64")) {
-                return WINDOWS_ARM64;
+    companion object {
+        @JvmStatic
+        val platform: MCEFPlatform
+            get() {
+                if (OS.isFamilyWindows()) {
+                    if (OS.isArch("amd64")) {
+                        return WINDOWS_AMD64
+                    } else if (OS.isArch("aarch64")) {
+                        return WINDOWS_ARM64
+                    }
+                } else if (OS.isFamilyMac()) {
+                    if (OS.isArch("x86_64")) {
+                        return MACOS_AMD64
+                    } else if (OS.isArch("aarch64")) {
+                        return MACOS_ARM64
+                    }
+                } else if (OS.isFamilyUnix()) {
+                    if (OS.isArch("amd64")) {
+                        return LINUX_AMD64
+                    } else if (OS.isArch("aarch64")) {
+                        return LINUX_ARM64
+                    }
+                }
+                val os = System.getProperty("os.name").lowercase()
+                val arch = System.getProperty("os.arch").lowercase()
+                throw RuntimeException("Unsupported platform: $os $arch")
             }
-        } else if (OS.isFamilyMac()) {
-            if (OS.isArch("x86_64")) {
-                return MACOS_AMD64;
-            } else if (OS.isArch("aarch64")) {
-                return MACOS_ARM64;
-            }
-        } else if (OS.isFamilyUnix()) {
-            if (OS.isArch("amd64")) {
-                return LINUX_AMD64;
-            } else if (OS.isArch("aarch64")) {
-                return LINUX_ARM64;
-            }
-        }
-
-        String os = System.getProperty("os.name").toLowerCase(Locale.ROOT);
-        String arch = System.getProperty("os.arch").toLowerCase(Locale.ROOT);
-        throw new RuntimeException("Unsupported platform: " + os + " " + arch);
     }
 }

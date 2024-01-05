@@ -31,8 +31,9 @@ repositories {
 ```
 ```
 dependencies {
-    implementation 'com.github.CCBlueX:mcef:1.20.1-SNAPSHOT'
-    implementation 'org.apache.commons:commons-exec:1.3'
+    implementation ('com.github.ccetl:mcef:1.2.1') {
+        exclude group: 'net.fabricmc', module: 'fabric-loader' // optional: exclude fabric 
+    }
 }
 ```
 

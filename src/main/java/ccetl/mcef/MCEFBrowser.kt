@@ -18,98 +18,92 @@
  *     USA
  */
 
-package ccetl.mcef;
+@file:Suppress("MemberVisibilityCanBePrivate")
 
-import ccetl.mcef.listeners.MCEFCursorChangeListener;
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
-import org.cef.browser.CefBrowser;
-import org.cef.browser.CefBrowserOsr;
-import org.cef.callback.CefDragData;
-import org.cef.event.CefKeyEvent;
-import org.cef.event.CefMouseEvent;
-import org.cef.event.CefMouseWheelEvent;
-import org.cef.misc.CefCursorType;
-import org.lwjgl.glfw.GLFW;
+package ccetl.mcef
 
-import java.awt.*;
-import java.nio.ByteBuffer;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
-
-import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.opengl.GL11.*;
+import ccetl.mcef.MCEFPlatform.Companion.platform
+import com.mojang.blaze3d.platform.GlStateManager
+import com.mojang.blaze3d.systems.RenderSystem
+import org.cef.browser.CefBrowser
+import org.cef.browser.CefBrowserOsr
+import org.cef.callback.CefDragData
+import org.cef.event.CefKeyEvent
+import org.cef.event.CefMouseEvent
+import org.cef.event.CefMouseWheelEvent
+import org.cef.misc.CefCursorType
+import org.lwjgl.glfw.GLFW
+import org.lwjgl.opengl.GL11
+import java.awt.Point
+import java.awt.Rectangle
+import java.nio.ByteBuffer
+import java.util.function.Consumer
+import java.util.function.Supplier
+import kotlin.math.ceil
+import kotlin.math.floor
 
 /**
  * An instance of an "Off-screen rendered" Chromium web browser.
  * Complete with a renderer, keyboard and mouse inputs, optional
  * browser control shortcuts, cursor handling, drag & drop support.
  */
-public class MCEFBrowser extends CefBrowserOsr {
+class MCEFBrowser(
+    client: MCEFClient,
     /**
      * The renderer for the browser.
      */
-    private final MCEFRenderer renderer;
-    private final Supplier<Long> windowSupplier;
-    private final Consumer<Runnable> submitter;
+    private var renderer: MCEFRenderer,
+    private val windowSupplier: Supplier<Long>,
+    private val submitter: Consumer<Runnable>,
+    url: String?
+) : CefBrowserOsr(client.handle, url, renderer.isTransparent(), null) {
     /**
      * Stores information about drag & drop.
      */
-    private final MCEFDragContext dragContext = new MCEFDragContext();
+    val dragContext = MCEFDragContext()
+
     /**
      * A listener that defines that happens when a cursor changes in the browser.
-     * E.g. when you've hovered over a button, an input box, are selecting text, etc...
+     * E.g., when you've hovered over a button, an input box, are selecting text, etc...
      * A default listener is created in the constructor that sets the cursor type to
      * the appropriate cursor based on the event.
      */
-    private MCEFCursorChangeListener cursorChangeListener;
+    var cursorChangeListener: Consumer<Int>
+
     /**
      * Whether MCEF should mimic the controls of a typical web browser.
-     * E.g. CTRL+R for reload, CTRL+Left for back, CTRL+Right for forward, etc...
+     * E.g., CTRL+R for reload, CTRL+Left for back, CTRL+Right for forward, etc...
      */
-    private boolean browserControls = true;
+    private var browserControls = true
+
     /**
      * Used to track when a full repaint should occur.
      */
-    private int lastWidth = 0, lastHeight = 0;
+    private var lastWidth = 0
+    private var lastHeight = 0
+
     /**
      * A bitset representing what mouse buttons are currently pressed.
      * CEF is a bit odd and implements mouse buttons as a part of modifier flags.
      */
-    private int btnMask = 0;
+    private var btnMask = 0
 
     // Data relating to popups and graphics
     // Marked as protected in-case a mod wants to extend MCEFBrowser and override the repaint logic
-    protected ByteBuffer graphics;
-    protected ByteBuffer popupGraphics;
-    protected Rectangle popupSize;
-    protected boolean showPopup = false;
-    protected boolean popupDrawn = false;
+    var graphics: ByteBuffer? = null
+    var popupGraphics: ByteBuffer? = null
+    var popupSize: Rectangle? = null
+    var showPopup = false
+    var popupDrawn = false
 
-    public MCEFBrowser(MCEFClient client, Supplier<Long> windowSupplier, Consumer<Runnable> submitter, String url, boolean transparent) {
-        super(client.getHandle(), url, transparent, null);
-        this.windowSupplier = windowSupplier;
-        this.submitter = submitter;
-        renderer = new MCEFRenderer(transparent);
-        cursorChangeListener = (cefCursorID) -> setCursor(CefCursorType.fromId(cefCursorID));
-
-        submitter.accept(renderer::initialize);
+    init {
+        cursorChangeListener = Consumer { cefCursorID: Int -> setCursor(CefCursorType.fromId(cefCursorID)) }
+        submitter.accept(Runnable { renderer.initialize() })
     }
 
-    public MCEFRenderer getRenderer() {
-        return renderer;
-    }
-
-    public MCEFCursorChangeListener getCursorChangeListener() {
-        return cursorChangeListener;
-    }
-
-    public void setCursorChangeListener(MCEFCursorChangeListener cursorChangeListener) {
-        this.cursorChangeListener = cursorChangeListener;
-    }
-
-    public boolean usingBrowserControls() {
-        return browserControls;
+    @Suppress("unused")
+    fun usingBrowserControls(): Boolean {
+        return browserControls
     }
 
     /**
@@ -119,328 +113,352 @@ public class MCEFBrowser extends CefBrowserOsr {
      * @param browserControls whether browser controls should be enabled
      * @return the browser instance
      */
-    public MCEFBrowser useBrowserControls(boolean browserControls) {
-        this.browserControls = browserControls;
-        return this;
-    }
-
-    public MCEFDragContext getDragContext() {
-        return dragContext;
+    @Suppress("unused")
+    fun useBrowserControls(browserControls: Boolean): MCEFBrowser {
+        this.browserControls = browserControls
+        return this
     }
 
     // Popups
-    @Override
-    public void onPopupShow(CefBrowser browser, boolean show) {
-        super.onPopupShow(browser, show);
-        showPopup = show;
-        if (!show) {
-            submitter.accept(() -> onPaint(browser, false, new Rectangle[]{popupSize}, graphics, lastWidth, lastHeight));
-            popupSize = null;
-            popupDrawn = false;
-            popupGraphics = null;
+    override fun onPopupShow(browser: CefBrowser, show: Boolean) {
+        super.onPopupShow(browser, show)
+        showPopup = show
+        if (show) {
+            return
         }
+
+        submitter.accept(Runnable {
+            onPaint(
+                browser,
+                false,
+                arrayOf(popupSize!!),
+                graphics!!,
+                lastWidth,
+                lastHeight
+            )
+        })
+        popupSize = null
+        popupDrawn = false
+        popupGraphics = null
     }
 
-    @Override
-    public void onPopupSize(CefBrowser browser, Rectangle size) {
-        super.onPopupSize(browser, size);
-        popupSize = size;
-        this.popupGraphics = ByteBuffer.allocateDirect(
-                size.width * size.height * 4
-        );
+    override fun onPopupSize(browser: CefBrowser, size: Rectangle) {
+        super.onPopupSize(browser, size)
+        popupSize = size
+        popupGraphics = ByteBuffer.allocateDirect(
+            size.width * size.height * 4
+        )
     }
 
     /**
      * Draws any existing popup menu to the browser's graphics
      */
-    protected void drawPopup() {
+    fun drawPopup() {
         if (showPopup && popupSize != null && popupDrawn) {
-            RenderSystem.bindTexture(renderer.getTextureID());
-            if (renderer.isTransparent()) RenderSystem.enableBlend();
-
-            RenderSystem.pixelStore(GL_UNPACK_ROW_LENGTH, popupSize.width);
-            GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, 0);
-            GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, 0);
-            renderer.onPaint(this.popupGraphics, popupSize.x, popupSize.y, popupSize.width, popupSize.height);
+            RenderSystem.bindTexture(renderer.getTextureId())
+            if (renderer.isTransparent()) {
+                RenderSystem.enableBlend()
+            }
+            RenderSystem.pixelStore(GL11.GL_UNPACK_ROW_LENGTH, popupSize!!.width)
+            GlStateManager._pixelStore(GL11.GL_UNPACK_SKIP_PIXELS, 0)
+            GlStateManager._pixelStore(GL11.GL_UNPACK_SKIP_ROWS, 0)
+            renderer.onPaint(popupGraphics!!, popupSize!!.x, popupSize!!.y, popupSize!!.width, popupSize!!.height)
         }
-    }
-
-    /**
-     * Copies data within a rectangle from one buffer to another
-     * Used by repaint logic
-     *
-     * @param srcBuffer the buffer to copy from
-     * @param dstBuffer the buffer to copy to
-     * @param dirty     the rectangle that needs to be updated
-     * @param width     the width of the browser
-     * @param height    the height of the browser
-     */
-    public static void store(ByteBuffer srcBuffer, ByteBuffer dstBuffer, Rectangle dirty, int width, int height) {
-        for (int y = dirty.y; y < dirty.height + dirty.y; y++) {
-            dstBuffer.position((y * width + dirty.x) * 4);
-            srcBuffer.position((y * width + dirty.x) * 4);
-            srcBuffer.limit(dirty.width * 4 + (y * width + dirty.x) * 4);
-            dstBuffer.put(srcBuffer);
-            srcBuffer.position(0).limit(srcBuffer.capacity());
-        }
-        dstBuffer.position(0).limit(dstBuffer.capacity());
     }
 
     // Graphics
-    @Override
-    public void onPaint(CefBrowser browser, boolean popup, Rectangle[] dirtyRects, ByteBuffer buffer, int width, int height) {
+    override fun onPaint(
+        browser: CefBrowser,
+        popup: Boolean,
+        dirtyRects: Array<Rectangle>,
+        buffer: ByteBuffer,
+        width: Int,
+        height: Int
+    ) {
         if (!popup && (width != lastWidth || height != lastHeight)) {
             // Copy buffer
-            graphics = ByteBuffer.allocateDirect(buffer.capacity());
-            graphics.position(0).limit(graphics.capacity());
-            graphics.put(buffer);
-            graphics.position(0);
-            buffer.position(0);
+            val graphics = ByteBuffer.allocateDirect(buffer.capacity())
+            graphics.position(0).limit(graphics.capacity())
+            graphics.put(buffer)
+            graphics.position(0)
+            buffer.position(0)
 
             // Draw
-            renderer.onPaint(buffer, width, height);
-            lastWidth = width;
-            lastHeight = height;
+            renderer.onPaint(buffer, width, height)
+            lastWidth = width
+            lastHeight = height
         } else {
             // Don't update graphics if the renderer is not initialized
-            if (renderer.getTextureID() == 0) return;
+            if (renderer.getTextureId() == 0) return
 
             // Update sub-rects
             if (!popup) {
                 // Graphics will be updated later if it's a popup
-                RenderSystem.bindTexture(renderer.getTextureID());
-                if (renderer.isTransparent()) RenderSystem.enableBlend();
-                RenderSystem.pixelStore(GL_UNPACK_ROW_LENGTH, width);
-            } else popupDrawn = true;
-
-            for (Rectangle dirtyRect : dirtyRects) {
+                RenderSystem.bindTexture(renderer.getTextureId())
+                if (renderer.isTransparent()) RenderSystem.enableBlend()
+                RenderSystem.pixelStore(GL11.GL_UNPACK_ROW_LENGTH, width)
+            } else popupDrawn = true
+            for (dirtyRect in dirtyRects) {
                 // Check that the popup isn't being cleared from the image
-                if (buffer != graphics)
-                    // Due to how CEF handles popups, the graphics of the popup and the graphics of the browser itself need to be stored separately
-                    store(buffer, popup ? popupGraphics : graphics, dirtyRect, width, height);
+                if (buffer !== graphics) // Due to how CEF handles popups, the graphics of the popup and the graphics of the browser itself need to be stored separately
+                    store(buffer, if (popup) popupGraphics else graphics, dirtyRect, width, height)
 
                 // Graphics will be updated later if it's a popup
                 if (!popup) {
                     // Upload to the GPU
-                    GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, dirtyRect.x);
-                    GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, dirtyRect.y);
-                    renderer.onPaint(buffer, dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height);
+                    GlStateManager._pixelStore(GL11.GL_UNPACK_SKIP_PIXELS, dirtyRect.x)
+                    GlStateManager._pixelStore(GL11.GL_UNPACK_SKIP_ROWS, dirtyRect.y)
+                    renderer.onPaint(buffer, dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height)
                 }
             }
         }
 
         // Upload popup to GPU, must be fully drawn every time paint is called
-        drawPopup();
+        drawPopup()
     }
 
-    public void resize(int width, int height) {
-        browser_rect_.setBounds(0, 0, width, height);
-        wasResized(width, height);
+    fun resize(width: Int, height: Int) {
+        browser_rect_.setBounds(0, 0, width, height)
+        wasResized(width, height)
     }
 
     // Inputs
-    public void sendKeyPress(int keyCode, long scanCode, int modifiers) {
+    @Suppress("unused")
+    fun sendKeyPress(keyCode: Int, scanCode: Long, modifiers: Int) {
         if (browserControls) {
-            if (modifiers == GLFW_MOD_CONTROL) {
-                if (keyCode == GLFW_KEY_R) {
-                    reload();
-                    return;
-                } else if (keyCode == GLFW_KEY_EQUAL) {
-                    if (getZoomLevel() < 9) setZoomLevel(getZoomLevel() + 1);
-                    return;
-                } else if (keyCode == GLFW_KEY_MINUS) {
-                    if (getZoomLevel() > -9) setZoomLevel(getZoomLevel() - 1);
-                    return;
-                } else if (keyCode == GLFW_KEY_0) {
-                    setZoomLevel(0);
-                    return;
+            if (modifiers == GLFW.GLFW_MOD_CONTROL) {
+                when (keyCode) {
+                    GLFW.GLFW_KEY_R -> {
+                        reload()
+                        return
+                    }
+                    GLFW.GLFW_KEY_EQUAL -> {
+                        if (getZoomLevel() < 9) {
+                            zoomLevel = getZoomLevel() + 1
+                        }
+                        return
+                    }
+                    GLFW.GLFW_KEY_MINUS -> {
+                        if (getZoomLevel() > -9) {
+                            zoomLevel = getZoomLevel() - 1
+                        }
+                        return
+                    }
+                    GLFW.GLFW_KEY_0 -> {
+                        zoomLevel = 0.0
+                        return
+                    }
                 }
-            } else if (modifiers == GLFW_MOD_ALT) {
-                if (keyCode == GLFW_KEY_LEFT && canGoBack()) {
-                    goBack();
-                    return;
-                } else if (keyCode == GLFW_KEY_RIGHT && canGoForward()) {
-                    goForward();
-                    return;
+            } else if (modifiers == GLFW.GLFW_MOD_ALT) {
+                if (keyCode == GLFW.GLFW_KEY_LEFT && canGoBack()) {
+                    goBack()
+                    return
+                } else if (keyCode == GLFW.GLFW_KEY_RIGHT && canGoForward()) {
+                    goForward()
+                    return
                 }
             }
         }
-
-        CefKeyEvent e = new CefKeyEvent(CefKeyEvent.KEY_PRESS, keyCode, (char) keyCode, modifiers);
-        e.scancode = scanCode;
-        sendKeyEvent(e);
+        val e = CefKeyEvent(CefKeyEvent.KEY_PRESS, keyCode, keyCode.toChar(), modifiers)
+        e.scancode = scanCode
+        sendKeyEvent(e)
     }
 
-    public void sendKeyRelease(int keyCode, long scanCode, int modifiers) {
+    @Suppress("unused")
+    fun sendKeyRelease(keyCode: Int, scanCode: Long, modifiers: Int) {
         if (browserControls) {
-            if (modifiers == GLFW_MOD_CONTROL) {
-                if (keyCode == GLFW_KEY_R) return;
-                else if (keyCode == GLFW_KEY_EQUAL) return;
-                else if (keyCode == GLFW_KEY_MINUS) return;
-                else if (keyCode == GLFW_KEY_0) return;
-            } else if (modifiers == GLFW_MOD_ALT) {
-                if (keyCode == GLFW_KEY_LEFT && canGoBack()) return;
-                else if (keyCode == GLFW_KEY_RIGHT && canGoForward()) return;
+            if (modifiers == GLFW.GLFW_MOD_CONTROL) {
+                if (keyCode == GLFW.GLFW_KEY_R) return else if (keyCode == GLFW.GLFW_KEY_EQUAL) return else if (keyCode == GLFW.GLFW_KEY_MINUS) return else if (keyCode == GLFW.GLFW_KEY_0) return
+            } else if (modifiers == GLFW.GLFW_MOD_ALT) {
+                if (keyCode == GLFW.GLFW_KEY_LEFT && canGoBack()) return else if (keyCode == GLFW.GLFW_KEY_RIGHT && canGoForward()) return
             }
         }
-
-        CefKeyEvent e = new CefKeyEvent(CefKeyEvent.KEY_RELEASE, keyCode, (char) keyCode, modifiers);
-        e.scancode = scanCode;
-        sendKeyEvent(e);
+        val e = CefKeyEvent(CefKeyEvent.KEY_RELEASE, keyCode, keyCode.toChar(), modifiers)
+        e.scancode = scanCode
+        sendKeyEvent(e)
     }
 
-    public void sendKeyTyped(char c, int modifiers) {
+    @Suppress("unused")
+    fun sendKeyTyped(c: Char, modifiers: Int) {
         if (browserControls) {
-            if (modifiers == GLFW_MOD_CONTROL) {
-                if ((int) c == GLFW_KEY_R) return;
-                else if ((int) c == GLFW_KEY_EQUAL) return;
-                else if ((int) c == GLFW_KEY_MINUS) return;
-                else if ((int) c == GLFW_KEY_0) return;
-            } else if (modifiers == GLFW_MOD_ALT) {
-                if ((int) c == GLFW_KEY_LEFT && canGoBack()) return;
-                else if ((int) c == GLFW_KEY_RIGHT && canGoForward()) return;
+            if (modifiers == GLFW.GLFW_MOD_CONTROL) {
+                if (c.code == GLFW.GLFW_KEY_R) return else if (c.code == GLFW.GLFW_KEY_EQUAL) return else if (c.code == GLFW.GLFW_KEY_MINUS) return else if (c.code == GLFW.GLFW_KEY_0) return
+            } else if (modifiers == GLFW.GLFW_MOD_ALT) {
+                if (c.code == GLFW.GLFW_KEY_LEFT && canGoBack()) return else if (c.code == GLFW.GLFW_KEY_RIGHT && canGoForward()) return
             }
         }
-
-        CefKeyEvent e = new CefKeyEvent(CefKeyEvent.KEY_TYPE, c, c, modifiers);
-        sendKeyEvent(e);
+        val e = CefKeyEvent(CefKeyEvent.KEY_TYPE, c.code, c, modifiers)
+        sendKeyEvent(e)
     }
 
-    public void sendMouseMove(int mouseX, int mouseY) {
-        CefMouseEvent e = new CefMouseEvent(CefMouseEvent.MOUSE_MOVED, mouseX, mouseY, 0, 0, dragContext.getVirtualModifiers(btnMask));
-        sendMouseEvent(e);
-
-        if (dragContext.isDragging())
-            this.dragTargetDragOver(new Point(mouseX, mouseY), 0, dragContext.getMask());
+    @Suppress("unused")
+    fun sendMouseMove(mouseX: Int, mouseY: Int) {
+        val e = CefMouseEvent(CefMouseEvent.MOUSE_MOVED, mouseX, mouseY, 0, 0, dragContext.getVirtualModifiers(btnMask))
+        sendMouseEvent(e)
+        if (dragContext.isDragging) dragTargetDragOver(Point(mouseX, mouseY), 0, dragContext.mask)
     }
 
     // TODO: it may be necessary to add modifiers here
-    public void sendMousePress(int mouseX, int mouseY, int button) {
+    @Suppress("unused")
+    fun sendMousePress(mouseX: Int, mouseY: Int, button: Int) {
         // for some reason, middle and right are swapped in MC
-        if (button == 1) button = 2;
-        else if (button == 2) button = 1;
-
-        if (button == 0) btnMask |= CefMouseEvent.BUTTON1_MASK;
-        else if (button == 1) btnMask |= CefMouseEvent.BUTTON2_MASK;
-        else if (button == 2) btnMask |= CefMouseEvent.BUTTON3_MASK;
-
-        CefMouseEvent e = new CefMouseEvent(GLFW_PRESS, mouseX, mouseY, 1, button, btnMask);
-        sendMouseEvent(e);
+        var button1 = button
+        if (button1 == 1) {
+            button1 = 2
+        } else if (button1 == 2) {
+            button1 = 1
+        }
+        when (button1) {
+            0 ->  btnMask = btnMask or CefMouseEvent.BUTTON1_MASK
+            1 ->  btnMask = btnMask or CefMouseEvent.BUTTON2_MASK
+            2 ->  btnMask = btnMask or CefMouseEvent.BUTTON3_MASK
+        }
+        val e = CefMouseEvent(GLFW.GLFW_PRESS, mouseX, mouseY, 1, button1, btnMask)
+        sendMouseEvent(e)
     }
 
     // TODO: it may be necessary to add modifiers here
-    public void sendMouseRelease(int mouseX, int mouseY, int button) {
+    @Suppress("unused")
+    fun sendMouseRelease(mouseX: Int, mouseY: Int, button: Int) {
         // For some reason, middle and right are swapped in MC
-        if (button == 1) button = 2;
-        else if (button == 2) button = 1;
-
-        if (button == 0 && (btnMask & CefMouseEvent.BUTTON1_MASK) != 0) btnMask ^= CefMouseEvent.BUTTON1_MASK;
-        else if (button == 1 && (btnMask & CefMouseEvent.BUTTON2_MASK) != 0) btnMask ^= CefMouseEvent.BUTTON2_MASK;
-        else if (button == 2 && (btnMask & CefMouseEvent.BUTTON3_MASK) != 0) btnMask ^= CefMouseEvent.BUTTON3_MASK;
-
-        CefMouseEvent e = new CefMouseEvent(GLFW_RELEASE, mouseX, mouseY, 1, button, btnMask);
-        sendMouseEvent(e);
+        var button1 = button
+        if (button1 == 1) button1 = 2 else if (button1 == 2) button1 = 1
+        if (button1 == 0 && btnMask and CefMouseEvent.BUTTON1_MASK != 0) btnMask =
+            btnMask xor CefMouseEvent.BUTTON1_MASK else if (button1 == 1 && btnMask and CefMouseEvent.BUTTON2_MASK != 0) btnMask =
+            btnMask xor CefMouseEvent.BUTTON2_MASK else if (button1 == 2 && btnMask and CefMouseEvent.BUTTON3_MASK != 0) btnMask =
+            btnMask xor CefMouseEvent.BUTTON3_MASK
+        val e = CefMouseEvent(GLFW.GLFW_RELEASE, mouseX, mouseY, 1, button1, btnMask)
+        sendMouseEvent(e)
 
         // drag&drop
-        if (dragContext.isDragging()) {
-            if (button == 0) {
-                finishDragging(mouseX, mouseY);
+        if (dragContext.isDragging) {
+            if (button1 == 0) {
+                finishDragging(mouseX, mouseY)
             }
         }
     }
 
     // TODO: smooth scrolling
-    public void sendMouseWheel(int mouseX, int mouseY, double amount, int modifiers) {
+    @Suppress("unused")
+    fun sendMouseWheel(mouseX: Int, mouseY: Int, amount: Double, modifiers: Int) {
+        var amount1 = amount
         if (browserControls) {
-            if ((modifiers & GLFW_MOD_CONTROL) != 0) {
-                if (amount > 0) {
-                    if (getZoomLevel() < 9) setZoomLevel(getZoomLevel() + 1);
-                } else if (getZoomLevel() > -9) setZoomLevel(getZoomLevel() - 1);
-                return;
+            if (modifiers and GLFW.GLFW_MOD_CONTROL != 0) {
+                if (amount1 > 0) {
+                    if (getZoomLevel() < 9) zoomLevel = getZoomLevel() + 1
+                } else if (getZoomLevel() > -9) zoomLevel = getZoomLevel() - 1
+                return
             }
         }
 
         // macOS generally has a slow scroll speed that feels more natural with their magic mice / trackpads
-        if (!MCEFPlatform.getPlatform().isMacOS()) {
+        if (!platform.isMacOS) {
             // This removes the feeling of "smooth scroll"
-            if (amount < 0) {
-                amount = Math.floor(amount);
+            amount1 = if (amount1 < 0) {
+                floor(amount1)
             } else {
-                amount = Math.ceil(amount);
+                ceil(amount1)
             }
 
             // This feels about equivalent to chromium with smooth scrolling disabled -ds58
-            amount = amount * 3;
+            amount1 *= 3
         }
-
-        CefMouseWheelEvent e = new CefMouseWheelEvent(CefMouseWheelEvent.WHEEL_UNIT_SCROLL, mouseX, mouseY, amount, modifiers);
-        sendMouseWheelEvent(e);
+        val e = CefMouseWheelEvent(CefMouseWheelEvent.WHEEL_UNIT_SCROLL, mouseX, mouseY, amount1, modifiers)
+        sendMouseWheelEvent(e)
     }
 
     // Drag & drop
-    @Override
-    public boolean startDragging(CefBrowser browser, CefDragData dragData, int mask, int x, int y) {
-        dragContext.startDragging(dragData, mask);
-        this.dragTargetDragEnter(dragContext.getDragData(), new Point(x, y), btnMask, dragContext.getMask());
+    override fun startDragging(browser: CefBrowser, dragData: CefDragData, mask: Int, x: Int, y: Int): Boolean {
+        dragContext.startDragging(dragData, mask)
+        dragTargetDragEnter(dragContext.dragData, Point(x, y), btnMask, dragContext.mask)
         // Indicates to CEF to not handle the drag event natively
-        // reason: native drag handling doesn't work with off screen rendering
-        return false;
+        // reason: native drag handling doesn't work with off-screen rendering
+        return false
     }
 
-    @Override
-    public void updateDragCursor(CefBrowser browser, int operation) {
-        if (dragContext.updateCursor(operation))
-            // If the cursor to display for the drag event changes, then update the cursor
-            this.onCursorChange(this, dragContext.getVirtualCursor(dragContext.getActualCursor()));
-
-        super.updateDragCursor(browser, operation);
+    override fun updateDragCursor(browser: CefBrowser, operation: Int) {
+        if (dragContext.updateCursor(operation)) // If the cursor to display for the drag event changes, then update the cursor
+            onCursorChange(this, dragContext.getVirtualCursor(dragContext.actualCursor))
+        super.updateDragCursor(browser, operation)
     }
 
     // Expose drag & drop functions
-    public void startDragging(CefDragData dragData, int mask, int x, int y) { // Overload since the JCEF method requires a browser, which then goes unused
-        startDragging(dragData, mask, x, y);
+    @Suppress("unused", "MemberVisibilityCanBePrivate")
+    fun startDragging(
+        dragData: CefDragData?,
+        mask: Int,
+        x: Int,
+        y: Int
+    ) { // Overload since the JCEF method requires a browser, which then goes unused
+        startDragging(dragData, mask, x, y)
     }
 
-    public void finishDragging(int x, int y) {
-        dragTargetDrop(new Point(x, y), btnMask);
-        dragTargetDragLeave();
-        dragContext.stopDragging();
-        this.onCursorChange(this, dragContext.getActualCursor());
+    @Suppress("unused", "MemberVisibilityCanBePrivate")
+    fun finishDragging(x: Int, y: Int) {
+        dragTargetDrop(Point(x, y), btnMask)
+        dragTargetDragLeave()
+        dragContext.stopDragging()
+        onCursorChange(this, dragContext.actualCursor)
     }
 
-    public void cancelDrag() {
-        dragTargetDragLeave();
-        dragContext.stopDragging();
-        this.onCursorChange(this, dragContext.getActualCursor());
+    @Suppress("unused")
+    fun cancelDrag() {
+        dragTargetDragLeave()
+        dragContext.stopDragging()
+        onCursorChange(this, dragContext.actualCursor)
     }
 
     // Closing
-    public void close() {
-        renderer.cleanup();
-        cursorChangeListener.onCursorChange(0);
-        super.close(true);
+    @Suppress("unused")
+    fun close() {
+        renderer.cleanup()
+        cursorChangeListener.accept(0)
+        super.close(true)
     }
 
-    @Override
-    protected void finalize() throws Throwable {
-        submitter.accept(renderer::cleanup);
-        super.finalize();
+    @Throws(Throwable::class)
+    override fun finalize() {
+        submitter.accept(Runnable { renderer.cleanup() })
+        super.finalize()
     }
 
     // Cursor handling
-    @Override
-    public boolean onCursorChange(CefBrowser browser, int cursorType) {
-        cursorType = dragContext.getVirtualCursor(cursorType);
-        cursorChangeListener.onCursorChange(cursorType);
-        return super.onCursorChange(browser, cursorType);
+    override fun onCursorChange(browser: CefBrowser, cursorType: Int): Boolean {
+        var cursorType1 = cursorType
+        cursorType1 = dragContext.getVirtualCursor(cursorType1)
+        cursorChangeListener.accept(cursorType1)
+        return super.onCursorChange(browser, cursorType1)
     }
 
-    public void setCursor(CefCursorType cursorType) {
+    fun setCursor(cursorType: CefCursorType) {
         if (cursorType == CefCursorType.NONE) {
-            GLFW.glfwSetInputMode(windowSupplier.get(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+            GLFW.glfwSetInputMode(windowSupplier.get(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN)
         } else {
-            GLFW.glfwSetInputMode(windowSupplier.get(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            GLFW.glfwSetCursor(windowSupplier.get(), MCEF.getGLFWCursorHandle(cursorType));
+            GLFW.glfwSetInputMode(windowSupplier.get(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL)
+            GLFW.glfwSetCursor(windowSupplier.get(), MCEF.getGLFWCursorHandle(cursorType))
+        }
+    }
+
+    companion object {
+        /**
+         * Copies data within a rectangle from one buffer to another
+         * Used by repaint logic
+         *
+         * @param srcBuffer the buffer to copy from
+         * @param dstBuffer the buffer to copy to
+         * @param dirty     the rectangle that needs to be updated
+         * @param width     the width of the browser
+         * @param height    the height of the browser
+         */
+        fun store(srcBuffer: ByteBuffer, dstBuffer: ByteBuffer?, dirty: Rectangle, width: Int, @Suppress("UNUSED_PARAMETER") height: Int) {
+            for (y in dirty.y until dirty.height + dirty.y) {
+                dstBuffer!!.position((y * width + dirty.x) * 4)
+                srcBuffer.position((y * width + dirty.x) * 4)
+                srcBuffer.limit(dirty.width * 4 + (y * width + dirty.x) * 4)
+                dstBuffer.put(srcBuffer)
+                srcBuffer.position(0).limit(srcBuffer.capacity())
+            }
+            dstBuffer!!.position(0).limit(dstBuffer.capacity())
         }
     }
 }

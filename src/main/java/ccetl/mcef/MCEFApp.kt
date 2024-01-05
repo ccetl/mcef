@@ -18,12 +18,12 @@
  *     USA
  */
 
-package ccetl.mcef;
+package ccetl.mcef
 
-import org.cef.CefApp;
+import org.cef.CefApp
 
 /**
- * A wrapper around {@link CefApp}
+ * A wrapper around [CefApp]
  */
-public record MCEFApp(CefApp handle) {
-}
+@JvmRecord
+data class MCEFApp(@JvmField val handle: CefApp)

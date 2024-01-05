@@ -1,19 +1,32 @@
-package ccetl.mcef;
+/*
+ *     MCEF (Minecraft Chromium Embedded Framework)
+ *     Copyright (C) 2023 CinemaMod Group
+ *
+ *     This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU Lesser General Public
+ *     License as published by the Free Software Foundation; either
+ *     version 2.1 of the License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *     Lesser General Public License for more details.
+ *
+ *     You should have received a copy of the GNU Lesser General Public
+ *     License along with this library; if not, write to the Free Software
+ *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
+ *     USA
+ */
 
-public class MCEFLogger {
-    private static Logger logger;
+package ccetl.mcef
 
-    public static Logger getLogger() {
-        return logger;
-    }
+object MCEFLogger {
+    @JvmField
+    var logger: Logger? = null
 
-    public static void setLogger(Logger logger) {
-        MCEFLogger.logger = logger;
-    }
-
-    public interface Logger {
-        void info(String message);
-        void warn(String message);
-        void error(String message, Exception exception);
+    interface Logger {
+        fun info(message: String)
+        fun warn(message: String)
+        fun error(message: String, exception: Exception)
     }
 }

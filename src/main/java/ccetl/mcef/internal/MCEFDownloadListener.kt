@@ -18,41 +18,26 @@
  *     USA
  */
 
-package ccetl.mcef.internal;
+package ccetl.mcef.internal
 
-import ccetl.mcef.MCEFLogger;
+import ccetl.mcef.MCEFLogger
 
-public class MCEFDownloadListener {
-    public static final MCEFDownloadListener INSTANCE = new MCEFDownloadListener();
+@Suppress("unused")
+object MCEFDownloadListener {
+    private var task: String = ""
+    @JvmField
+    var percent: Float = 0f
+    @JvmField
+    var done: Boolean = false
 
-    private String task;
-    private float percent;
-    private boolean done;
+    fun setTask(name: String) {
+        task = name
+        percent = 0f
 
-    public void setTask(String name) {
-        this.task = name;
-        this.percent = 0;
-
-        MCEFLogger.getLogger().info("Task: " + name + " with progress " + (percent * 100) + " %");
+        MCEFLogger.logger?.info("Task: " + name + " with progress " + (percent * 100) + " %")
     }
 
-    public String getTask() {
-        return task;
-    }
-
-    public void setProgress(float percent) {
-        this.percent = percent;
-    }
-
-    public float getProgress() {
-        return percent;
-    }
-
-    public void setDone(boolean done) {
-        this.done = done;
-    }
-
-    public boolean isDone() {
-        return done;
+    fun getTask(): String {
+        return task
     }
 }
