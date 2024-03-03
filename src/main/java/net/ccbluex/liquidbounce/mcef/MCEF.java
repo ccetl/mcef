@@ -54,6 +54,8 @@ public final class MCEF {
         return LOGGER;
     }
 
+    public static MinecraftClient mc = MinecraftClient.getInstance();
+
     /**
      * Get access to various settings for MCEF.
      * @return Returns the existing {@link MCEFSettings} or creates a new {@link MCEFSettings} and loads from disk (blocking)
@@ -68,6 +70,7 @@ public final class MCEF {
 
     public static boolean initialize() {
         MCEF.getLogger().info("Initializing CEF on " + MCEFPlatform.getPlatform().getNormalizedName() + "...");
+
         if (CefUtil.init()) {
             app = new MCEFApp(CefUtil.getCefApp());
             client = new MCEFClient(CefUtil.getCefClient());
@@ -75,11 +78,6 @@ public final class MCEF {
             awaitingInit.forEach(t -> t.onInit(true));
             awaitingInit.clear();
             MCEF.getLogger().info("Chromium Embedded Framework initialized");
-
-            app.getHandle().registerSchemeHandlerFactory(
-                    "mod", "",
-                    (browser, frame, url, request) -> new ModScheme(request.getURL())
-            );
 
             // Handle shutdown events, macOS is special
             // These are important; the jcef process will linger around if not done
@@ -95,6 +93,7 @@ public final class MCEF {
 
             return true;
         }
+
         awaitingInit.forEach(t -> t.onInit(false));
         awaitingInit.clear();
         MCEF.getLogger().info("Could not initialize Chromium Embedded Framework");
@@ -231,10 +230,14 @@ public final class MCEF {
      * Helper method to get a GLFW cursor handle for the given {@link CefCursorType} cursor type
      */
     static long getGLFWCursorHandle(CefCursorType cursorType) {
-        if (CEF_TO_GLFW_CURSORS.containsKey(cursorType)) return CEF_TO_GLFW_CURSORS.get(cursorType);
+        if (CEF_TO_GLFW_CURSORS.containsKey(cursorType)) {
+            return CEF_TO_GLFW_CURSORS.get(cursorType);
+        }
+
         long glfwCursorHandle = GLFW.glfwCreateStandardCursor(cursorType.glfwId);
         CEF_TO_GLFW_CURSORS.put(cursorType, glfwCursorHandle);
         return glfwCursorHandle;
     }
+
     private static final HashMap<CefCursorType, Long> CEF_TO_GLFW_CURSORS = new HashMap<>();
 }

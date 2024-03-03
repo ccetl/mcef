@@ -58,8 +58,14 @@ public class MCEFRenderer {
     }
 
     protected void onPaint(ByteBuffer buffer, int width, int height) {
-        if (textureID[0] == 0) return;
-        if (transparent) RenderSystem.enableBlend();
+        if (textureID[0] == 0) {
+            return;
+        }
+
+        if (transparent) {
+            RenderSystem.enableBlend();
+        }
+
         RenderSystem.bindTexture(textureID[0]);
         RenderSystem.pixelStore(GL_UNPACK_ROW_LENGTH, width);
         RenderSystem.pixelStore(GL_UNPACK_SKIP_PIXELS, 0);

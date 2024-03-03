@@ -73,4 +73,29 @@ public enum MCEFPlatform {
         String arch = System.getProperty("os.arch").toLowerCase(Locale.ENGLISH);
         throw new RuntimeException("Unsupported platform: " + os + " " + arch);
     }
+
+    public String[] requiredLibraries() {
+        if (isWindows()) {
+            return new String[] {
+                    "d3dcompiler_47.dll",
+                    "libGLESv2.dll",
+                    "libEGL.dll",
+                    "chrome_elf.dll",
+                    "libcef.dll",
+                    "jcef.dll"
+            };
+        } else if (isMacOS()) {
+            return new String[] {
+                    "libjcef.dylib"
+            };
+        } else if (isLinux()) {
+            return new String[] {
+                    "libcef.so",
+                    "libjcef.so"
+            };
+        }
+
+        return new String[0];
+    }
+
 }

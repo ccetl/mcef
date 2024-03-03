@@ -20,15 +20,22 @@
 
 package net.ccbluex.liquidbounce.mcef;
 
+import java.io.File;
+import java.util.Arrays;
+import java.util.List;
+
 public class MCEFSettings {
 
-    private String downloadMirror;
-    private String userAgent;
-
-    public MCEFSettings() {
-        downloadMirror = "https://dl.ccbluex.net/resources";
-        userAgent = null;
-    }
+    private String downloadMirror = "https://dl.liquidbounce.net/resources";
+    private String userAgent = null;
+    private List<String> cefSwitches = Arrays.asList(
+            "--autoplay-policy=no-user-gesture-required",
+            "--disable-web-security",
+            "--enable-widevine-cdm",
+            "--off-screen-rendering-enabled",
+            "--off-screen-frame-rate=120"
+    );
+    private File cacheDirectory = null;
 
     public String getDownloadMirror() {
         return downloadMirror;
@@ -44,6 +51,30 @@ public class MCEFSettings {
 
     public void setUserAgent(String userAgent) {
         this.userAgent = userAgent;
+    }
+
+    public List<String> getCefSwitches() {
+        return cefSwitches;
+    }
+
+    public void appendCefSwitches(String... switches) {
+        cefSwitches.addAll(Arrays.asList(switches));
+    }
+
+    public void removeCefSwitches(String... switches) {
+        cefSwitches.removeAll(Arrays.asList(switches));
+    }
+
+    public void setCefSwitches(List<String> cefSwitches) {
+        this.cefSwitches = cefSwitches;
+    }
+
+    public File getCacheDirectory() {
+        return cacheDirectory;
+    }
+
+    public void setCacheDirectory(File cacheDirectory) {
+        this.cacheDirectory = cacheDirectory;
     }
 
 }

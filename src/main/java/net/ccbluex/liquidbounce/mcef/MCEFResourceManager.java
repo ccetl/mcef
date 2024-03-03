@@ -37,7 +37,7 @@ import java.net.URLConnection;
  * in the MCEFSettings properties file; see {@link MCEFSettings}.
  * Email ds58@mailbox.org for any questions or concerns regarding the file hosting.
  */
-public class MCEFDownloader {
+public class MCEFResourceManager {
 
     private static final String JAVA_CEF_DOWNLOAD_URL =
             "${host}/java-cef-builds/${java-cef-commit}/${platform}.tar.gz";
@@ -48,27 +48,32 @@ public class MCEFDownloader {
     private final String javaCefCommitHash;
     private final MCEFPlatform platform;
     private final MCEFDownloadListener percentCompleteConsumer = MCEFDownloadListener.INSTANCE;
+    public static File platformDirectory;
 
-    private MCEFDownloader(String host, String javaCefCommitHash, MCEFPlatform platform) {
+    private MCEFResourceManager(String host, String javaCefCommitHash, MCEFPlatform platform) {
         this.host = host;
         this.javaCefCommitHash = javaCefCommitHash;
         this.platform = platform;
     }
 
-    public static MCEFDownloader newDownloader() throws IOException {
+    public static MCEFResourceManager newResourceManager() throws IOException {
         var javaCefCommit = MCEF.getJavaCefCommit();
         MCEF.getLogger().info("java-cef commit: " + javaCefCommit);
         var settings = MCEF.getSettings();
 
-        return new MCEFDownloader(settings.getDownloadMirror(), javaCefCommit,
+        return new MCEFResourceManager(settings.getDownloadMirror(), javaCefCommit,
                 MCEFPlatform.getPlatform());
     }
 
     public boolean requiresDownload(final File directory) throws IOException {
-        var platformDirectory = new File(directory, MCEFPlatform.getPlatform().getNormalizedName());
-        var checksumFile = new File(directory, platform.getNormalizedName() + ".tar.gz.sha256");
+        if (!directory.exists()) {
+            directory.mkdirs();
+        }
 
-        setupLibraryPath(directory, platformDirectory);
+        platformDirectory = new File(directory, MCEFPlatform.getPlatform().getNormalizedName());
+        var checksumFile = new File(directory, platform.getNormalizedName() + ".tar.gz.sha256");
+        // TODO: Pass File to CEF directly
+        System.setProperty("jcef.path", platformDirectory.getCanonicalPath());
 
         // We always download the checksum for the java-cef build
         // We will compare this with mcef-libraries/<platform>.tar.gz.sha256
@@ -113,13 +118,6 @@ public class MCEFDownloader {
         MCEFDownloadListener.INSTANCE.setDone(true);
     }
 
-    private static void setupLibraryPath(final File mcefLibrariesDir, final File jcefDirectory) throws IOException {
-        mcefLibrariesDir.mkdirs();
-
-        System.setProperty("mcef.libraries.path", mcefLibrariesDir.getCanonicalPath());
-        System.setProperty("jcef.path", jcefDirectory.getCanonicalPath());
-    }
-
     public String getHost() {
         return host;
     }
@@ -151,7 +149,7 @@ public class MCEFDownloader {
     }
 
     /**
-     * @return true if the jcef build checksum file matches the remote checksum file (for the {@link MCEFDownloader#javaCefCommitHash}),
+     * @return true if the jcef build checksum file matches the remote checksum file (for the {@link MCEFResourceManager#javaCefCommitHash}),
      * false if the jcef build checksum file did not exist or did not match; this means we should redownload JCEF
      * @throws IOException
      */
@@ -211,7 +209,6 @@ public class MCEFDownloader {
 
     private static void extractTarGz(File tarGzFile, File outputDirectory, MCEFDownloadListener percentCompleteConsumer) {
         percentCompleteConsumer.setTask("Extracting");
-
         outputDirectory.mkdirs();
 
         long fileSize = tarGzFile.length();
@@ -240,7 +237,7 @@ public class MCEFDownloader {
                 }
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            throw new RuntimeException("Failed to extract tar.gz", e);
         }
 
         percentCompleteConsumer.setProgress(1.0f);

@@ -20,9 +20,6 @@
 
 package net.ccbluex.liquidbounce.mcef;
 
-import net.ccbluex.liquidbounce.mcef.MCEF;
-import net.ccbluex.liquidbounce.mcef.MCEFPlatform;
-import net.ccbluex.liquidbounce.mcef.MCEFSettings;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.CefSettings;
@@ -32,8 +29,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
-import java.util.Objects;
 import java.util.Set;
+
+import static net.ccbluex.liquidbounce.mcef.MCEFResourceManager.platformDirectory;
 
 /**
  * This class mostly just interacts with org.cef.* for internal use in {@link MCEF}
@@ -55,51 +53,49 @@ final class CefUtil {
         try {
             Files.setPosixFilePermissions(file.toPath(), perms);
         } catch (IOException e) {
-            e.printStackTrace();
+            MCEF.getLogger().error("Failed to set file permissions for " + file.getPath(), e);
         }
     }
 
     static boolean init() {
         var platform = MCEFPlatform.getPlatform();
+        var natives = platform.requiredLibraries();
+        var settings = MCEF.getSettings();
 
         // Ensure binaries are executable
         if (platform.isLinux()) {
-            File jcefHelperFile = new File(System.getProperty("mcef.libraries.path"), platform.getNormalizedName() + "/jcef_helper");
+            var jcefHelperFile = new File(platformDirectory, "jcef_helper");
             setUnixExecutable(jcefHelperFile);
         } else if (platform.isMacOS()) {
-            File mcefLibrariesPath = new File(System.getProperty("mcef.libraries.path"));
-            File jcefHelperFile = new File(mcefLibrariesPath, platform.getNormalizedName() + "/jcef_app.app/Contents/Frameworks/jcef Helper.app/Contents/MacOS/jcef Helper");
-            File jcefHelperGPUFile = new File(mcefLibrariesPath, platform.getNormalizedName() + "/jcef_app.app/Contents/Frameworks/jcef Helper (GPU).app/Contents/MacOS/jcef Helper (GPU)");
-            File jcefHelperPluginFile = new File(mcefLibrariesPath, platform.getNormalizedName() + "/jcef_app.app/Contents/Frameworks/jcef Helper (Plugin).app/Contents/MacOS/jcef Helper (Plugin)");
-            File jcefHelperRendererFile = new File(mcefLibrariesPath, platform.getNormalizedName() + "/jcef_app.app/Contents/Frameworks/jcef Helper (Renderer).app/Contents/MacOS/jcef Helper (Renderer)");
+            var jcefHelperFile = new File(platformDirectory, "jcef_app.app/Contents/Frameworks/jcef Helper.app/Contents/MacOS/jcef Helper");
+            var jcefHelperGPUFile = new File(platformDirectory, "jcef_app.app/Contents/Frameworks/jcef Helper (GPU).app/Contents/MacOS/jcef Helper (GPU)");
+            var jcefHelperPluginFile = new File(platformDirectory, "jcef_app.app/Contents/Frameworks/jcef Helper (Plugin).app/Contents/MacOS/jcef Helper (Plugin)");
+            var jcefHelperRendererFile = new File(platformDirectory, "jcef_app.app/Contents/Frameworks/jcef Helper (Renderer).app/Contents/MacOS/jcef Helper (Renderer)");
             setUnixExecutable(jcefHelperFile);
             setUnixExecutable(jcefHelperGPUFile);
             setUnixExecutable(jcefHelperPluginFile);
             setUnixExecutable(jcefHelperRendererFile);
         }
 
-        String[] cefSwitches = new String[]{
-                "--autoplay-policy=no-user-gesture-required",
-                "--disable-web-security",
-                "--enable-widevine-cdm", // https://canary.discord.com/channels/985588552735809696/992495232035868682/1151704612924039218
-                "--off-screen-rendering-enabled",
-                "--off-screen-frame-rate=60",
+        var cefSwitches = settings.getCefSwitches().toArray(new String[0]);
 
-                // TODO: should probably make this configurable
-                //       based off this page: https://magpcss.org/ceforum/viewtopic.php?f=6&t=11672
-                //       it seems the solution to the white screen is to add the "--disable-gpu" switch
-                //       but that shouldn't be done on all devices, so either we need to figure out a pattern and setup code to add the switch based off that, or add it as a config, if that is the case
-        };
+        for (var nativeLibrary : natives) {
+            var nativeFile = new File(platformDirectory, nativeLibrary);
+
+            if (!nativeFile.exists()) {
+                MCEF.getLogger().error("Missing native library: " + nativeFile.getPath());
+                throw new RuntimeException("Missing native library: " + nativeFile.getPath());
+            }
+        }
 
         if (!CefApp.startup(cefSwitches)) {
             return false;
         }
 
-        MCEFSettings settings = MCEF.getSettings();
-
         var cefSettings = new CefSettings();
         cefSettings.windowless_rendering_enabled = true;
         cefSettings.background_color = cefSettings.new ColorType(0, 255, 255, 255);
+        cefSettings.cache_path = settings.getCacheDirectory() != null ? settings.getCacheDirectory().getAbsolutePath() : null;
         // Set the user agent if there's one defined in MCEFSettings
         if (settings.getUserAgent() != null) {
             cefSettings.user_agent = settings.getUserAgent();

@@ -36,6 +36,7 @@ import org.lwjgl.glfw.GLFW;
 import java.awt.*;
 import java.nio.ByteBuffer;
 
+import static net.ccbluex.liquidbounce.mcef.MCEF.mc;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL11.*;
 
@@ -88,7 +89,7 @@ public class MCEFBrowser extends CefBrowserOsr {
         renderer = new MCEFRenderer(transparent);
         cursorChangeListener = (cefCursorID) -> setCursor(CefCursorType.fromId(cefCursorID));
 
-        MinecraftClient.getInstance().submit(renderer::initialize);
+        mc.submit(renderer::initialize);
     }
 
     public MCEFRenderer getRenderer() {
@@ -129,7 +130,7 @@ public class MCEFBrowser extends CefBrowserOsr {
         super.onPopupShow(browser, show);
         showPopup = show;
         if (!show) {
-            MinecraftClient.getInstance().submit(() -> {
+            mc.submit(() -> {
                 onPaint(browser, false, new Rectangle[]{popupSize}, graphics, lastWidth, lastHeight);
             });
             popupSize = null;
@@ -420,7 +421,7 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     @Override
     protected void finalize() throws Throwable {
-        MinecraftClient.getInstance().submit(renderer::cleanup);
+        mc.submit(renderer::cleanup);
         super.finalize();
     }
 
@@ -433,11 +434,13 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
 
     public void setCursor(CefCursorType cursorType) {
-        if (cursorType == CefCursorType.NONE) {
-            GLFW.glfwSetInputMode(MinecraftClient.getInstance().getWindow().getHandle(), GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
+        var windowHandle = mc.getWindow().getHandle();
+
+        if (cursorType == CefCursorType.NONE || mc.mouse.isCursorLocked()) {
+            GLFW.glfwSetInputMode(windowHandle, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
         } else {
-            GLFW.glfwSetInputMode(MinecraftClient.getInstance().getWindow().getHandle(), GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            GLFW.glfwSetCursor(MinecraftClient.getInstance().getWindow().getHandle(), MCEF.getGLFWCursorHandle(cursorType));
+            GLFW.glfwSetInputMode(windowHandle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+            GLFW.glfwSetCursor(windowHandle, MCEF.getGLFWCursorHandle(cursorType));
         }
     }
 }
