@@ -23,7 +23,6 @@ package net.ccbluex.liquidbounce.mcef;
 import net.ccbluex.liquidbounce.mcef.listeners.MCEFCursorChangeListener;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.MinecraftClient;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefBrowserOsr;
 import org.cef.callback.CefDragData;
@@ -436,11 +435,9 @@ public class MCEFBrowser extends CefBrowserOsr {
     public void setCursor(CefCursorType cursorType) {
         var windowHandle = mc.getWindow().getHandle();
 
-        if (cursorType == CefCursorType.NONE || mc.mouse.isCursorLocked()) {
-            GLFW.glfwSetInputMode(windowHandle, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
-        } else {
-            GLFW.glfwSetInputMode(windowHandle, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
-            GLFW.glfwSetCursor(windowHandle, MCEF.getGLFWCursorHandle(cursorType));
-        }
+        // We do not want to change the cursor state since Minecraft does this for us.
+        if (cursorType == CefCursorType.NONE) return;
+
+        GLFW.glfwSetCursor(windowHandle, MCEF.getGLFWCursorHandle(cursorType));
     }
 }

@@ -173,7 +173,7 @@ public class MCEFResourceManager {
         return false;
     }
 
-    private void extractJavaCefBuild(File mcefLibrariesPath) {
+    private void extractJavaCefBuild(File mcefLibrariesPath) throws IOException {
         var tarGzArchive = new File(mcefLibrariesPath, platform.getNormalizedName() + ".tar.gz");
 
         extractTarGz(tarGzArchive, mcefLibrariesPath, percentCompleteConsumer);
@@ -183,7 +183,7 @@ public class MCEFResourceManager {
     }
 
     private static void downloadFile(String urlString, File outputFile, MCEFDownloadListener percentCompleteConsumer) throws IOException {
-        MCEF.getLogger().info(urlString + " -> " + outputFile.getCanonicalPath());
+        MCEF.getLogger().debug("Downloading '" + urlString + "' to '" + outputFile.getCanonicalPath() + "'");
 
         URL url = new URL(urlString);
         URLConnection urlConnection = url.openConnection();
@@ -207,39 +207,36 @@ public class MCEFResourceManager {
         outputStream.close();
     }
 
-    private static void extractTarGz(File tarGzFile, File outputDirectory, MCEFDownloadListener percentCompleteConsumer) {
+    private static void extractTarGz(File tarGzFile, File outputDirectory, MCEFDownloadListener percentCompleteConsumer)
+            throws IOException {
         percentCompleteConsumer.setTask("Extracting");
         outputDirectory.mkdirs();
 
-        long fileSize = tarGzFile.length();
-        long totalBytesRead = 0;
-
         try (TarArchiveInputStream tarInput = new TarArchiveInputStream(new GzipCompressorInputStream(new FileInputStream(tarGzFile)))) {
+            long totalBytesRead = 0;
+            long fileSizeEstimate = tarGzFile.length(); // Initial estimate for progress
+
             TarArchiveEntry entry;
             while ((entry = tarInput.getNextTarEntry()) != null) {
-                if (entry.isDirectory()) {
-                    continue;
-                }
+                if (!entry.isDirectory()) {
+                    File outputFile = new File(outputDirectory, entry.getName());
+                    outputFile.getParentFile().mkdirs();
 
-                File outputFile = new File(outputDirectory, entry.getName());
-                outputFile.getParentFile().mkdirs();
-
-                try (OutputStream outputStream = new FileOutputStream(outputFile)) {
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    while ((bytesRead = tarInput.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, bytesRead);
-                        totalBytesRead += bytesRead;
-                        float percentComplete = (((float) totalBytesRead / fileSize) / 2.6158204f); // Roughly the compression ratio
-                        percentCompleteConsumer.setProgress(percentComplete);
-                        buffer = new byte[Math.max(4096, tarInput.available())];
+                    try (OutputStream outputStream = new BufferedOutputStream(new FileOutputStream(outputFile))) {
+                        byte[] buffer = new byte[8192]; // Adjust buffer size for optimal I/O
+                        int bytesRead;
+                        while ((bytesRead = tarInput.read(buffer)) != -1) {
+                            outputStream.write(buffer, 0, bytesRead);
+                            totalBytesRead += bytesRead;
+                            float percentComplete = (float) totalBytesRead / fileSizeEstimate;
+                            percentCompleteConsumer.setProgress(percentComplete);
+                        }
                     }
                 }
             }
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to extract tar.gz", e);
+        } finally {
+            percentCompleteConsumer.setProgress(1.0f); // Ensure completion regardless of exceptions
         }
-
-        percentCompleteConsumer.setProgress(1.0f);
     }
+
 }
