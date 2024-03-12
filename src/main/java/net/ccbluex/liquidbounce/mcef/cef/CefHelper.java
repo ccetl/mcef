@@ -120,15 +120,15 @@ public final class CefHelper {
             initialized = false;
 
             try {
-                cefAppInstance.dispose();
-            } catch (Exception e) {
-                MCEF.INSTANCE.getLogger().error("Failed to dispose CefApp", e);
-            }
-
-            try {
                 cefClientInstance.dispose();
             } catch (Exception e) {
                 MCEF.INSTANCE.getLogger().error("Failed to dispose CefClient", e);
+            }
+
+            try {
+                cefAppInstance.dispose();
+            } catch (Exception e) {
+                MCEF.INSTANCE.getLogger().error("Failed to dispose CefApp", e);
             }
         }
     }
