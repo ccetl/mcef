@@ -1,25 +1,28 @@
 /*
- *     MCEF (Minecraft Chromium Embedded Framework)
- *     Copyright (C) 2023 CinemaMod Group
+ * This file is part of LiquidBounce (https://github.com/CCBlueX/LiquidBounce)
  *
- *     This library is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU Lesser General Public
- *     License as published by the Free Software Foundation; either
- *     version 2.1 of the License, or (at your option) any later version.
+ * Copyright (c) 2024 CCBlueX
  *
- *     This library is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *     Lesser General Public License for more details.
+ * LiquidBounce is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  *
- *     You should have received a copy of the GNU Lesser General Public
- *     License along with this library; if not, write to the Free Software
- *     Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301
- *     USA
+ * LiquidBounce is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with LiquidBounce. If not, see <https://www.gnu.org/licenses/>.
+ *
+ *
  */
 
-package net.ccbluex.liquidbounce.mcef;
+package net.ccbluex.liquidbounce.mcef.cef;
 
+import net.ccbluex.liquidbounce.mcef.MCEF;
+import net.ccbluex.liquidbounce.mcef.MCEFPlatform;
 import org.cef.CefApp;
 import org.cef.CefClient;
 import org.cef.CefSettings;
@@ -31,16 +34,15 @@ import java.nio.file.attribute.PosixFilePermission;
 import java.util.HashSet;
 import java.util.Set;
 
-import static net.ccbluex.liquidbounce.mcef.MCEFResourceManager.platformDirectory;
-
 /**
  * This class mostly just interacts with org.cef.* for internal use in {@link MCEF}
  */
-final class CefUtil {
-    private CefUtil() {
+public final class CefHelper {
+
+    private CefHelper() {
     }
 
-    private static boolean init;
+    private static boolean initialized;
     private static CefApp cefAppInstance;
     private static CefClient cefClientInstance;
 
@@ -53,14 +55,15 @@ final class CefUtil {
         try {
             Files.setPosixFilePermissions(file.toPath(), perms);
         } catch (IOException e) {
-            MCEF.getLogger().error("Failed to set file permissions for " + file.getPath(), e);
+            MCEF.INSTANCE.getLogger().error("Failed to set file permissions for " + file.getPath(), e);
         }
     }
 
-    static boolean init() {
+    public static boolean init() {
         var platform = MCEFPlatform.getPlatform();
         var natives = platform.requiredLibraries();
-        var settings = MCEF.getSettings();
+        var settings = MCEF.INSTANCE.getSettings();
+        var platformDirectory = MCEF.INSTANCE.getResourceManager().getPlatformDirectory();
 
         // Ensure binaries are executable
         if (platform.isLinux()) {
@@ -83,11 +86,12 @@ final class CefUtil {
             var nativeFile = new File(platformDirectory, nativeLibrary);
 
             if (!nativeFile.exists()) {
-                MCEF.getLogger().error("Missing native library: " + nativeFile.getPath());
+                MCEF.INSTANCE.getLogger().error("Missing native library: " + nativeFile.getPath());
                 throw new RuntimeException("Missing native library: " + nativeFile.getPath());
             }
         }
 
+        System.setProperty("jcef.path", platformDirectory.getAbsolutePath());
         if (!CefApp.startup(cefSwitches)) {
             return false;
         }
@@ -108,26 +112,36 @@ final class CefUtil {
         cefAppInstance = CefApp.getInstance(cefSwitches, cefSettings);
         cefClientInstance = cefAppInstance.createClient();
 
-        return init = true;
+        return initialized = true;
     }
 
-    static void shutdown() {
-        if (isInit()) {
-            init = false;
-            cefClientInstance.dispose();
-            cefAppInstance.dispose();
+    public static void shutdown() {
+        if (isInitialized()) {
+            initialized = false;
+
+            try {
+                cefAppInstance.dispose();
+            } catch (Exception e) {
+                MCEF.INSTANCE.getLogger().error("Failed to dispose CefApp", e);
+            }
+
+            try {
+                cefClientInstance.dispose();
+            } catch (Exception e) {
+                MCEF.INSTANCE.getLogger().error("Failed to dispose CefClient", e);
+            }
         }
     }
 
-    static boolean isInit() {
-        return init;
+    public static boolean isInitialized() {
+        return initialized;
     }
 
-    static CefApp getCefApp() {
+    public static CefApp getCefApp() {
         return cefAppInstance;
     }
 
-    static CefClient getCefClient() {
+    public static CefClient getCefClient() {
         return cefClientInstance;
     }
 }

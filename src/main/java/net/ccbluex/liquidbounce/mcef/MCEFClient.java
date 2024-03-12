@@ -119,6 +119,9 @@ public class MCEFClient implements CefLoadHandler, CefContextMenuHandler, CefDis
     }
 
     @Override
+    public void OnFullscreenModeChange(CefBrowser browser, boolean fullscreen) { }
+
+    @Override
     public boolean onTooltip(CefBrowser browser, String text) {
         for (CefDisplayHandler displayHandler : displayHandlers)
             if (displayHandler.onTooltip(browser, text))

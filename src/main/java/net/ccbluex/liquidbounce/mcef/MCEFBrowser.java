@@ -20,9 +20,10 @@
 
 package net.ccbluex.liquidbounce.mcef;
 
-import net.ccbluex.liquidbounce.mcef.listeners.MCEFCursorChangeListener;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import net.ccbluex.liquidbounce.mcef.glfw.MCEFGlfwCursorHelper;
+import net.ccbluex.liquidbounce.mcef.listeners.MCEFCursorChangeListener;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefBrowserOsr;
 import org.cef.callback.CefDragData;
@@ -61,11 +62,6 @@ public class MCEFBrowser extends CefBrowserOsr {
      */
     private MCEFCursorChangeListener cursorChangeListener;
     /**
-     * Whether MCEF should mimic the controls of a typical web browser.
-     * E.g. CTRL+R for reload, CTRL+Left for back, CTRL+Right for forward, etc...
-     */
-    private boolean browserControls = true;
-    /**
      * Used to track when a full repaint should occur.
      */
     private int lastWidth = 0, lastHeight = 0;
@@ -82,9 +78,12 @@ public class MCEFBrowser extends CefBrowserOsr {
     protected Rectangle popupSize;
     protected boolean showPopup = false;
     protected boolean popupDrawn = false;
+    private long lastClickTime = 0;
+    private int clicks;
+    private int mouseButton;
 
-    public MCEFBrowser(MCEFClient client, String url, boolean transparent) {
-        super(client.getHandle(), url, transparent, null);
+    public MCEFBrowser(MCEFClient client, String url, boolean transparent, int frameRate) {
+        super(client.getHandle(), url, transparent, null, new MCEFBrowserSettings(frameRate));
         renderer = new MCEFRenderer(transparent);
         cursorChangeListener = (cefCursorID) -> setCursor(CefCursorType.fromId(cefCursorID));
 
@@ -101,22 +100,6 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     public void setCursorChangeListener(MCEFCursorChangeListener cursorChangeListener) {
         this.cursorChangeListener = cursorChangeListener;
-    }
-
-    public boolean usingBrowserControls() {
-        return browserControls;
-    }
-
-    /**
-     * Enabling browser controls tells MCEF to mimic the behavior of an actual browser.
-     * CTRL+R for reload, CTRL+Left for back, CTRL+Right for forward, etc...
-     *
-     * @param browserControls whether browser controls should be enabled
-     * @return the browser instance
-     */
-    public MCEFBrowser useBrowserControls(boolean browserControls) {
-        this.browserControls = browserControls;
-        return this;
     }
 
     public MCEFDragContext getDragContext() {
@@ -185,7 +168,8 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     // Graphics
     @Override
-    public void onPaint(CefBrowser browser, boolean popup, Rectangle[] dirtyRects, ByteBuffer buffer, int width, int height) {
+    public void onPaint(CefBrowser browser, boolean popup, Rectangle[] dirtyRects, ByteBuffer buffer, int width,
+                        int height) {
         if (!popup && (width != lastWidth || height != lastHeight)) {
             // Copy buffer
             graphics = ByteBuffer.allocateDirect(buffer.capacity());
@@ -237,30 +221,9 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     // Inputs
     public void sendKeyPress(int keyCode, long scanCode, int modifiers) {
-        if (browserControls) {
-            if (modifiers == GLFW_MOD_CONTROL) {
-                if (keyCode == GLFW_KEY_R) {
-                    reload();
-                    return;
-                } else if (keyCode == GLFW_KEY_EQUAL) {
-                    if (getZoomLevel() < 9) setZoomLevel(getZoomLevel() + 1);
-                    return;
-                } else if (keyCode == GLFW_KEY_MINUS) {
-                    if (getZoomLevel() > -9) setZoomLevel(getZoomLevel() - 1);
-                    return;
-                } else if (keyCode == GLFW_KEY_0) {
-                    setZoomLevel(0);
-                    return;
-                }
-            } else if (modifiers == GLFW_MOD_ALT) {
-                if (keyCode == GLFW_KEY_LEFT && canGoBack()) {
-                    goBack();
-                    return;
-                } else if (keyCode == GLFW_KEY_RIGHT && canGoForward()) {
-                    goForward();
-                    return;
-                }
-            }
+        if (modifiers == GLFW_MOD_CONTROL && keyCode == GLFW_KEY_R) {
+            reload();
+            return;
         }
 
         CefKeyEvent e = new CefKeyEvent(CefKeyEvent.KEY_PRESS, keyCode, (char) keyCode, modifiers);
@@ -269,16 +232,8 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
 
     public void sendKeyRelease(int keyCode, long scanCode, int modifiers) {
-        if (browserControls) {
-            if (modifiers == GLFW_MOD_CONTROL) {
-                if (keyCode == GLFW_KEY_R) return;
-                else if (keyCode == GLFW_KEY_EQUAL) return;
-                else if (keyCode == GLFW_KEY_MINUS) return;
-                else if (keyCode == GLFW_KEY_0) return;
-            } else if (modifiers == GLFW_MOD_ALT) {
-                if (keyCode == GLFW_KEY_LEFT && canGoBack()) return;
-                else if (keyCode == GLFW_KEY_RIGHT && canGoForward()) return;
-            }
+        if (modifiers == GLFW_MOD_CONTROL && keyCode == GLFW_KEY_R) {
+            return;
         }
 
         CefKeyEvent e = new CefKeyEvent(CefKeyEvent.KEY_RELEASE, keyCode, (char) keyCode, modifiers);
@@ -287,16 +242,8 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
 
     public void sendKeyTyped(char c, int modifiers) {
-        if (browserControls) {
-            if (modifiers == GLFW_MOD_CONTROL) {
-                if ((int) c == GLFW_KEY_R) return;
-                else if ((int) c == GLFW_KEY_EQUAL) return;
-                else if ((int) c == GLFW_KEY_MINUS) return;
-                else if ((int) c == GLFW_KEY_0) return;
-            } else if (modifiers == GLFW_MOD_ALT) {
-                if ((int) c == GLFW_KEY_LEFT && canGoBack()) return;
-                else if ((int) c == GLFW_KEY_RIGHT && canGoForward()) return;
-            }
+        if (modifiers == GLFW_MOD_CONTROL && (int) c == GLFW_KEY_R) {
+            return;
         }
 
         CefKeyEvent e = new CefKeyEvent(CefKeyEvent.KEY_TYPE, c, c, modifiers);
@@ -304,59 +251,59 @@ public class MCEFBrowser extends CefBrowserOsr {
     }
 
     public void sendMouseMove(int mouseX, int mouseY) {
-        CefMouseEvent e = new CefMouseEvent(CefMouseEvent.MOUSE_MOVED, mouseX, mouseY, 0, 0, dragContext.getVirtualModifiers(btnMask));
-        sendMouseEvent(e);
+        sendMouseEvent(new CefMouseEvent(CefMouseEvent.MOUSE_MOVED, mouseX, mouseY, clicks, mouseButton,
+                dragContext.getVirtualModifiers(btnMask)));
 
-        if (dragContext.isDragging())
+        if (dragContext.isDragging()) {
             this.dragTargetDragOver(new Point(mouseX, mouseY), 0, dragContext.getMask());
+        }
     }
 
-    // TODO: it may be necessary to add modifiers here
     public void sendMousePress(int mouseX, int mouseY, int button) {
-        // for some reason, middle and right are swapped in MC
-        if (button == 1) button = 2;
-        else if (button == 2) button = 1;
+        button = swapButton(button);
 
-        if (button == 0) btnMask |= CefMouseEvent.BUTTON1_MASK;
-        else if (button == 1) btnMask |= CefMouseEvent.BUTTON2_MASK;
-        else if (button == 2) btnMask |= CefMouseEvent.BUTTON3_MASK;
+        if (button == 0) {
+            btnMask |= CefMouseEvent.BUTTON1_MASK;
+        } else if (button == 1) {
+            btnMask |= CefMouseEvent.BUTTON2_MASK;
+        } else if (button == 2) {
+            btnMask |= CefMouseEvent.BUTTON3_MASK;
+        }
 
-        CefMouseEvent e = new CefMouseEvent(GLFW_PRESS, mouseX, mouseY, 1, button, btnMask);
-        sendMouseEvent(e);
+        // Double click handling
+        var time = System.currentTimeMillis();
+        clicks = time - lastClickTime < 500 ? 2 : 1;
+
+        sendMouseEvent(new CefMouseEvent(GLFW_PRESS, mouseX, mouseY, clicks, button, btnMask));
+
+        this.lastClickTime = time;
+        this.mouseButton = button;
     }
 
     // TODO: it may be necessary to add modifiers here
     public void sendMouseRelease(int mouseX, int mouseY, int button) {
-        // For some reason, middle and right are swapped in MC
-        if (button == 1) button = 2;
-        else if (button == 2) button = 1;
+        button = swapButton(button);
 
-        if (button == 0 && (btnMask & CefMouseEvent.BUTTON1_MASK) != 0) btnMask ^= CefMouseEvent.BUTTON1_MASK;
-        else if (button == 1 && (btnMask & CefMouseEvent.BUTTON2_MASK) != 0) btnMask ^= CefMouseEvent.BUTTON2_MASK;
-        else if (button == 2 && (btnMask & CefMouseEvent.BUTTON3_MASK) != 0) btnMask ^= CefMouseEvent.BUTTON3_MASK;
+        if (button == 0 && (btnMask & CefMouseEvent.BUTTON1_MASK) != 0) {
+            btnMask ^= CefMouseEvent.BUTTON1_MASK;
+        } else if (button == 1 && (btnMask & CefMouseEvent.BUTTON2_MASK) != 0) {
+            btnMask ^= CefMouseEvent.BUTTON2_MASK;
+        } else if (button == 2 && (btnMask & CefMouseEvent.BUTTON3_MASK) != 0) {
+            btnMask ^= CefMouseEvent.BUTTON3_MASK;
+        }
 
-        CefMouseEvent e = new CefMouseEvent(GLFW_RELEASE, mouseX, mouseY, 1, button, btnMask);
-        sendMouseEvent(e);
-
-        // drag&drop
+        // drag & drop
         if (dragContext.isDragging()) {
             if (button == 0) {
                 finishDragging(mouseX, mouseY);
             }
         }
+
+        sendMouseEvent(new CefMouseEvent(GLFW_RELEASE, mouseX, mouseY, clicks, button, btnMask));
+        this.mouseButton = 0;
     }
 
-    // TODO: smooth scrolling
-    public void sendMouseWheel(int mouseX, int mouseY, double amount, int modifiers) {
-        if (browserControls) {
-            if ((modifiers & GLFW_MOD_CONTROL) != 0) {
-                if (amount > 0) {
-                    if (getZoomLevel() < 9) setZoomLevel(getZoomLevel() + 1);
-                } else if (getZoomLevel() > -9) setZoomLevel(getZoomLevel() - 1);
-                return;
-            }
-        }
-
+    public void sendMouseWheel(int mouseX, int mouseY, double amount) {
         // macOS generally has a slow scroll speed that feels more natural with their magic mice / trackpads
         if (!MCEFPlatform.getPlatform().isMacOS()) {
             // This removes the feeling of "smooth scroll"
@@ -370,8 +317,8 @@ public class MCEFBrowser extends CefBrowserOsr {
             amount = amount * 3;
         }
 
-        CefMouseWheelEvent e = new CefMouseWheelEvent(CefMouseWheelEvent.WHEEL_UNIT_SCROLL, mouseX, mouseY, amount, modifiers);
-        sendMouseWheelEvent(e);
+        var event = new CefMouseWheelEvent(CefMouseWheelEvent.WHEEL_UNIT_SCROLL, mouseX, mouseY, amount, 0);
+        sendMouseWheelEvent(event);
     }
 
     // Drag & drop
@@ -386,15 +333,17 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     @Override
     public void updateDragCursor(CefBrowser browser, int operation) {
-        if (dragContext.updateCursor(operation))
+        if (dragContext.updateCursor(operation)) {
             // If the cursor to display for the drag event changes, then update the cursor
             this.onCursorChange(this, dragContext.getVirtualCursor(dragContext.getActualCursor()));
+        }
 
         super.updateDragCursor(browser, operation);
     }
 
     // Expose drag & drop functions
-    public void startDragging(CefDragData dragData, int mask, int x, int y) { // Overload since the JCEF method requires a browser, which then goes unused
+    public void startDragging(CefDragData dragData, int mask, int x, int y) {
+        // Overload since the JCEF method requires a browser, which then goes unused
         startDragging(dragData, mask, x, y);
     }
 
@@ -438,6 +387,23 @@ public class MCEFBrowser extends CefBrowserOsr {
         // We do not want to change the cursor state since Minecraft does this for us.
         if (cursorType == CefCursorType.NONE) return;
 
-        GLFW.glfwSetCursor(windowHandle, MCEF.getGLFWCursorHandle(cursorType));
+        GLFW.glfwSetCursor(windowHandle, MCEFGlfwCursorHelper.getGLFWCursorHandle(cursorType));
     }
+
+    /**
+     * For some reason, middle and right are swapped in MC
+     *
+     * @param button the button to swap
+     * @return the swapped button
+     */
+    private int swapButton(int button) {
+        if (button == 1) {
+            return 2;
+        } else if (button == 2) {
+            return 1;
+        }
+
+        return button;
+    }
+
 }

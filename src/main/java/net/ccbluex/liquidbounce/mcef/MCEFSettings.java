@@ -32,10 +32,10 @@ public class MCEFSettings {
             "--autoplay-policy=no-user-gesture-required",
             "--disable-web-security",
             "--enable-widevine-cdm",
-            "--off-screen-rendering-enabled",
-            "--off-screen-frame-rate=120"
+            "--off-screen-rendering-enabled"
     );
     private File cacheDirectory = null;
+    private File librariesDirectory = null;
 
     public String getDownloadMirror() {
         return downloadMirror;
@@ -75,6 +75,14 @@ public class MCEFSettings {
 
     public void setCacheDirectory(File cacheDirectory) {
         this.cacheDirectory = cacheDirectory;
+    }
+
+    public File getLibrariesDirectory() {
+        return librariesDirectory;
+    }
+
+    public void setLibrariesDirectory(File librariesDirectory) {
+        this.librariesDirectory = librariesDirectory;
     }
 
 }
