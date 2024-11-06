@@ -1,6 +1,7 @@
 plugins {
     id 'fabric-loom'
     id 'maven-publish'
+    id 'idea'
 }
 
 def getCheckedOutGitCommitHash(Project mcefParent) {
@@ -48,9 +49,6 @@ base {
     archivesName = project.archives_base_name
 }
 
-sourceCompatibility = JavaLanguageVersion.of(java_version as int)
-targetCompatibility = JavaLanguageVersion.of(java_version as int)
-
 repositories {
     mavenCentral()
     mavenLocal()
@@ -63,8 +61,6 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
 
     implementation 'org.apache.commons:commons-exec:1.3'
-
-    testImplementation "junit:junit:4.13.1"
 }
 
 sourceSets {
@@ -90,7 +86,7 @@ processResources {
 
 
 tasks.withType(JavaCompile).configureEach {
-    it.options.release = 17
+    it.options.release = 21
 }
 
 jar {
@@ -114,22 +110,14 @@ jar {
     from("$buildDir/jcef.commit")
 }
 
-remapJar {
-    targetNamespace = "named"
-}
-
-remapSourcesJar {
-    targetNamespace = "named"
-}
-
 java {
     // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
     // if it is present.
     // If you remove this line, sources will not be generated.
     withSourcesJar()
 
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 idea {
