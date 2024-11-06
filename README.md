@@ -31,7 +31,7 @@ repositories {
 ```
 ```
 dependencies {
-    implementation 'com.github.CCBlueX:mcef:1.20.1-SNAPSHOT'
+    modImplementation 'com.github.CCBlueX:mcef:1.1.5-1.21.1'
 }
 ```
 
