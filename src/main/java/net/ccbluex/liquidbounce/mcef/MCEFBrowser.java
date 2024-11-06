@@ -32,6 +32,7 @@ import org.cef.event.CefMouseEvent;
 import org.cef.event.CefMouseWheelEvent;
 import org.cef.misc.CefCursorType;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.system.MemoryUtil;
 
 import java.awt.*;
 import java.nio.ByteBuffer;
@@ -73,7 +74,6 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     // Data relating to popups and graphics
     // Marked as protected in-case a mod wants to extend MCEFBrowser and override the repaint logic
-    protected ByteBuffer graphics;
     protected ByteBuffer popupGraphics;
     protected Rectangle popupSize;
     protected boolean showPopup = false;
@@ -111,14 +111,7 @@ public class MCEFBrowser extends CefBrowserOsr {
     public void onPopupShow(CefBrowser browser, boolean show) {
         super.onPopupShow(browser, show);
         showPopup = show;
-        if (!show) {
-            mc.submit(() -> {
-                onPaint(browser, false, new Rectangle[]{popupSize}, graphics, lastWidth, lastHeight);
-            });
-            popupSize = null;
-            popupDrawn = false;
-            popupGraphics = null;
-        }
+        if (!show) popupDrawn = false;
     }
 
     @Override
@@ -130,88 +123,83 @@ public class MCEFBrowser extends CefBrowserOsr {
         );
     }
 
-    /**
-     * Draws any existing popup menu to the browser's graphics
-     */
-    protected void drawPopup() {
-        if (showPopup && popupSize != null && popupDrawn) {
-            RenderSystem.bindTexture(renderer.getTextureID());
-            if (renderer.isTransparent()) RenderSystem.enableBlend();
-
-            RenderSystem.pixelStore(GL_UNPACK_ROW_LENGTH, popupSize.width);
-            GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, 0);
-            GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, 0);
-            renderer.onPaint(this.popupGraphics, popupSize.x, popupSize.y, popupSize.width, popupSize.height);
-        }
-    }
-
-    /**
-     * Copies data within a rectangle from one buffer to another
-     * Used by repaint logic
-     *
-     * @param srcBuffer the buffer to copy from
-     * @param dstBuffer the buffer to copy to
-     * @param dirty     the rectangle that needs to be updated
-     * @param width     the width of the browser
-     * @param height    the height of the browser
-     */
-    public static void store(ByteBuffer srcBuffer, ByteBuffer dstBuffer, Rectangle dirty, int width, int height) {
-        for (int y = dirty.y; y < dirty.height + dirty.y; y++) {
-            dstBuffer.position((y * width + dirty.x) * 4);
-            srcBuffer.position((y * width + dirty.x) * 4);
-            srcBuffer.limit(dirty.width * 4 + (y * width + dirty.x) * 4);
-            dstBuffer.put(srcBuffer);
-            srcBuffer.position(0).limit(srcBuffer.capacity());
-        }
-        dstBuffer.position(0).limit(dstBuffer.capacity());
-    }
-
     // Graphics
     @Override
-    public void onPaint(CefBrowser browser, boolean popup, Rectangle[] dirtyRects, ByteBuffer buffer, int width,
-                        int height) {
-        if (!popup && (width != lastWidth || height != lastHeight)) {
-            // Copy buffer
-            graphics = ByteBuffer.allocateDirect(buffer.capacity());
-            graphics.position(0).limit(graphics.capacity());
-            graphics.put(buffer);
-            graphics.position(0);
-            buffer.position(0);
+    public void onPaint(CefBrowser browser, boolean popup, Rectangle[] dirtyRects, ByteBuffer buffer, int width, int height) {
+        // nothing to update
+        if (dirtyRects.length == 0)
+            return;
 
-            // Draw
-            renderer.onPaint(buffer, width, height);
-            lastWidth = width;
-            lastHeight = height;
-        } else {
-            // Don't update graphics if the renderer is not initialized
-            if (renderer.getTextureID() == 0) return;
-
-            // Update sub-rects
-            if (!popup) {
-                // Graphics will be updated later if it's a popup
+        if (!popup) {
+            if (lastWidth != width || lastHeight != height) {
+                lastWidth = width;
+                lastHeight = height;
+                // upload full texture
+                // this also sets up the texture size and creates the texture
+                renderer.onPaint(buffer, width, height);
+            } else {
+                if (renderer.getTextureID() == 0) return;
                 RenderSystem.bindTexture(renderer.getTextureID());
-                if (renderer.isTransparent()) RenderSystem.enableBlend();
                 RenderSystem.pixelStore(GL_UNPACK_ROW_LENGTH, width);
-            } else popupDrawn = true;
-
-            for (Rectangle dirtyRect : dirtyRects) {
-                // Check that the popup isn't being cleared from the image
-                if (buffer != graphics)
-                    // Due to how CEF handles popups, the graphics of the popup and the graphics of the browser itself need to be stored separately
-                    store(buffer, popup ? popupGraphics : graphics, dirtyRect, width, height);
-
-                // Graphics will be updated later if it's a popup
-                if (!popup) {
-                    // Upload to the GPU
+                for (Rectangle dirtyRect : dirtyRects) {
                     GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, dirtyRect.x);
                     GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, dirtyRect.y);
                     renderer.onPaint(buffer, dirtyRect.x, dirtyRect.y, dirtyRect.width, dirtyRect.height);
                 }
+                if ((popupDrawn || showPopup) && popupSize != null) {
+                    // interpret where the popup was as a dirty rect
+                    if (!showPopup) {
+                        // if the popup is not visible, just draw the contents of the buffer
+                        GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, popupSize.width);
+                        GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, popupSize.height);
+                        renderer.onPaint(buffer, popupSize.x, popupSize.y, popupSize.width, popupSize.height);
+                        popupGraphics = null;
+                        popupSize = null;
+                    } else if (popupDrawn) {
+                        // else, a use copy of the popup graphics, as it needs to remain visible
+                        // and for some reason that I do not for the life of me understand, chromium does not seem to keep this data in memory outside of the paint loop, meaning it has to be copied around, which wastes performance
+                        RenderSystem.pixelStore(GL_UNPACK_ROW_LENGTH, popupSize.width);
+                        GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, 0);
+                        GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, 0);
+                        renderer.onPaint(popupGraphics, popupSize.x, popupSize.y, popupSize.width, popupSize.height);
+                    }
+                }
             }
-        }
+        } else {
+            if (renderer.getTextureID() == 0) return;
+            RenderSystem.bindTexture(renderer.getTextureID());
+            int start = buffer.capacity();
+            int end = 0;
+            for (Rectangle dirtyRect : dirtyRects) {
+                RenderSystem.pixelStore(GL_UNPACK_ROW_LENGTH, popupSize.width);
+                GlStateManager._pixelStore(GL_UNPACK_SKIP_PIXELS, dirtyRect.x);
+                GlStateManager._pixelStore(GL_UNPACK_SKIP_ROWS, dirtyRect.y);
+                renderer.onPaint(buffer, popupSize.x + dirtyRect.x, popupSize.y + dirtyRect.y, dirtyRect.width, dirtyRect.height);
 
-        // Upload popup to GPU, must be fully drawn every time paint is called
-        drawPopup();
+                int rectStart = (dirtyRect.x + ((dirtyRect.y) * popupSize.width)) << 2;
+                if (rectStart < start) start = rectStart;
+
+                int rectEnd = ((dirtyRect.x + dirtyRect.width) + ((dirtyRect.y + popupSize.height) * dirtyRect.width)) << 2;
+                if (rectEnd > end) end = rectEnd;
+            }
+            if (start < 0) start = 0;
+            if (end > buffer.capacity()) end = buffer.capacity();
+
+            if (end > start) {
+                // TODO: check if it's more performant to go for row-wise copies or if it's better to just copy the updated region
+                if (this.popupGraphics != null) {
+                    long addrFrom = MemoryUtil.memAddress(buffer);
+                    long addrTo = MemoryUtil.memAddress(popupGraphics);
+                    MemoryUtil.memCopy(
+                            addrFrom + start,
+                            addrTo + start,
+                            (end - start)
+                    );
+                }
+            }
+
+            popupDrawn = true;
+        }
     }
 
     public void resize(int width, int height) {
