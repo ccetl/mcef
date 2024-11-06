@@ -78,6 +78,15 @@ sourceSets {
 }
 
 processResources {
+    filesMatching('fabric.mod.json') {
+        expand 'mod_id': mod_id,
+                'mod_name': mod_name,
+                'mod_vendor': mod_vendor,
+                'mod_version': mod_version,
+                'minecraft_version': minecraft_version,
+                'loader_version': loader_version
+    }
+
     inputs.property "version", project.version
 
     dependsOn processJcefResources
