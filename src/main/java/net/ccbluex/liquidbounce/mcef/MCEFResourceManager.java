@@ -26,25 +26,27 @@ import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.io.FileUtils;
+import org.apache.http.HttpEntity;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 
 import java.io.*;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 
 /**
  * A downloader and extraction tool for java-cef builds.
  * <p>
- * Downloads for <a href="https://github.com/CinemaMod/java-cef">CinemaMod java-cef</a> are provided by the CinemaMod Group unless changed
+ * Downloads for <a href="https://github.com/CCBlueX/java-cef">CCBlueX MCEF java-cef</a> are provided by CCBlueX unless changed
  * in the MCEFSettings properties file; see {@link MCEFSettings}.
- * Email ds58@mailbox.org for any questions or concerns regarding the file hosting.
+ * Email support@liquidbounce.net for any questions or concerns regarding the file hosting.
  */
 public class MCEFResourceManager {
 
     private static final String JAVA_CEF_DOWNLOAD_URL =
-            "${host}/java-cef-builds/${java-cef-commit}/${platform}.tar.gz";
+            "${host}/mcef-cef/${java-cef-commit}/${platform}";
     private static final String JAVA_CEF_CHECKSUM_DOWNLOAD_URL =
-            "${host}/java-cef-builds/${java-cef-commit}/${platform}.tar.gz.sha256";
+            "${host}/mcef-cef/${java-cef-commit}/${platform}/checksum";
 
     private final String host;
     private final String javaCefCommitHash;
@@ -65,7 +67,6 @@ public class MCEFResourceManager {
     public File getPlatformDirectory() {
         return platformDirectory;
     }
-
     public File getCommitDirectory() {
         return commitDirectory;
     }
@@ -112,8 +113,8 @@ public class MCEFResourceManager {
         while (true) {
             try {
                 var tarGzArchive = new File(commitDirectory, platform.getNormalizedName() + ".tar.gz");
-                if (tarGzArchive.exists() && !tarGzArchive.delete()) {
-                    throw new IOException("Failed to delete existing tar.gz archive");
+                if (tarGzArchive.exists()) {
+                    FileUtils.forceDelete(tarGzArchive);
                 }
 
                 // Download JCEF from file hosting
@@ -121,8 +122,13 @@ public class MCEFResourceManager {
                 progressTracker.setTask("Downloading JCEF");
                 downloadFile(getJavaCefDownloadUrl(), tarGzArchive, progressTracker);
 
-                if (platformDirectory.exists() && !platformDirectory.delete()) {
-                    throw new IOException("Failed to delete existing platform directory");
+                // Delete existing platform directory
+                if (platformDirectory.exists()) {
+                    MCEF.INSTANCE.getLogger().info("Deleting existing platform directory...");
+
+                    // Delete existing platform directory - if this fails,
+                    // we hope [extractTarGz] will overwrite the existing files instead.
+                    FileUtils.deleteQuietly(platformDirectory);
                 }
 
                 // Compare checksum of .tar.gz file with remote checksum file
@@ -139,9 +145,11 @@ public class MCEFResourceManager {
                 // Extract JCEF from tar.gz
                 MCEF.INSTANCE.getLogger().info("Extracting JCEF...");
                 extractTarGz(tarGzArchive, commitDirectory, progressTracker);
-                if (tarGzArchive.exists() && !tarGzArchive.delete()) {
+                if (tarGzArchive.exists() && !FileUtils.deleteQuietly(tarGzArchive)) {
                     // Retry deletion on exit
-                    tarGzArchive.deleteOnExit();
+                    try {
+                        FileUtils.forceDeleteOnExit(tarGzArchive);
+                    } catch (Exception ignored) { }
                 }
                 break;
             } catch (Exception e) {
@@ -190,15 +198,19 @@ public class MCEFResourceManager {
         downloadFile(getJavaCefChecksumDownloadUrl(), tempChecksumFile, progressTracker);
 
         if (checksumFile.exists()) {
-            boolean sameContent = FileUtils.contentEquals(checksumFile, tempChecksumFile);
+            boolean sameContent = FileUtils.readFileToString(checksumFile, "UTF-8").trim()
+                    .equals(FileUtils.readFileToString(tempChecksumFile, "UTF-8").trim());
 
             if (sameContent) {
-                tempChecksumFile.delete();
+                FileUtils.deleteQuietly(tempChecksumFile);
                 return true;
             }
+
+            // Delete existing checksum file if it doesn't match the new checksum
+            FileUtils.delete(checksumFile);
         }
 
-        tempChecksumFile.renameTo(checksumFile);
+        FileUtils.moveFile(tempChecksumFile, checksumFile);
         return false;
     }
 
@@ -220,45 +232,39 @@ public class MCEFResourceManager {
     }
 
     private void downloadFile(String urlString, File outputFile, MCEFProgressTracker percentCompleteConsumer) throws IOException {
-        try {
-            MCEF.INSTANCE.getLogger().debug("Downloading '{}' to '{}'", urlString, outputFile.getCanonicalPath());
-        } catch (IOException e) {
-            throw new RuntimeException("Error getting canonical path for file", e);
-        }
+        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
+            HttpGet httpGet = new HttpGet(urlString);
 
-        try {
-            URL url = new URL(urlString);
-            HttpURLConnection httpConn = (HttpURLConnection) url.openConnection();
-
-            int responseCode = httpConn.getResponseCode();
-            if(responseCode != HttpURLConnection.HTTP_OK) {
-                throw new RuntimeException("HTTP error code: " + responseCode);
-            }
-
-            int fileSize = httpConn.getContentLength();
-            if (fileSize <= 0) {
-                throw new RuntimeException("Cannot read file size or file size is 0");
-            }
-
-            try (BufferedInputStream inputStream = new BufferedInputStream(httpConn.getInputStream());
-                 FileOutputStream outputStream = new FileOutputStream(outputFile)) {
-
-                byte[] buffer = new byte[2048];
-                int bytesRead;
-                int readBytes = 0;
-                while ((bytesRead = inputStream.read(buffer)) != -1) {
-                    outputStream.write(buffer, 0, bytesRead);
-                    readBytes += bytesRead;
-                    float percentComplete = (float) readBytes / fileSize;
-                    percentCompleteConsumer.setProgress(percentComplete);
+            httpClient.execute(httpGet, response -> {
+                int status = response.getStatusLine().getStatusCode();
+                if (status < 200 || status >= 300) {
+                    throw new IOException("Unexpected response status: " + status);
                 }
-            } catch (IOException e) {
-                throw new IOException("Error writing to file from input stream", e);
-            }
-        } catch (MalformedURLException e) {
-            throw new RuntimeException("Invalid URL format for " + urlString, e);
-        } catch (IOException e) {
-            throw new IOException("Error connecting to " + urlString, e);
+
+                HttpEntity entity = response.getEntity();
+                if (entity == null) {
+                    throw new IOException("No content returned from " + urlString);
+                }
+
+                long contentLength = entity.getContentLength();
+                try (InputStream inputStream = entity.getContent();
+                     FileOutputStream outputStream = new FileOutputStream(outputFile)) {
+
+                    byte[] buffer = new byte[8192];
+                    int bytesRead;
+                    long totalBytesRead = 0;
+                    while ((bytesRead = inputStream.read(buffer)) != -1) {
+                        outputStream.write(buffer, 0, bytesRead);
+                        totalBytesRead += bytesRead;
+                        if (contentLength > 0) {
+                            float percentComplete = (float) totalBytesRead / contentLength;
+                            percentCompleteConsumer.setProgress(percentComplete);
+                        }
+                    }
+                }
+                EntityUtils.consume(entity);
+                return null;
+            });
         }
     }
 

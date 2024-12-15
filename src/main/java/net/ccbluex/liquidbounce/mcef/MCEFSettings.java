@@ -26,7 +26,7 @@ import java.util.List;
 
 public class MCEFSettings {
 
-    private String downloadMirror = "https://dl.liquidbounce.net/resources";
+    private String downloadMirror = "https://api.liquidbounce.net/api/v3/resource";
     private String userAgent = null;
     private List<String> cefSwitches = Arrays.asList(
             "--autoplay-policy=no-user-gesture-required",
