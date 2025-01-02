@@ -21,16 +21,15 @@
 package net.ccbluex.liquidbounce.mcef;
 
 import net.ccbluex.liquidbounce.mcef.progress.MCEFProgressTracker;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okio.Buffer;
+import okio.Okio;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
 import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream;
 import org.apache.commons.io.FileUtils;
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
-import org.apache.http.util.EntityUtils;
 
 import java.io.*;
 
@@ -232,39 +231,36 @@ public class MCEFResourceManager {
     }
 
     private void downloadFile(String urlString, File outputFile, MCEFProgressTracker percentCompleteConsumer) throws IOException {
-        try (CloseableHttpClient httpClient = HttpClients.createDefault()) {
-            HttpGet httpGet = new HttpGet(urlString);
+        var client = new OkHttpClient();
+        var request = new Request.Builder()
+                .url(urlString)
+                .build();
 
-            httpClient.execute(httpGet, response -> {
-                int status = response.getStatusLine().getStatusCode();
-                if (status < 200 || status >= 300) {
-                    throw new IOException("Unexpected response status: " + status);
-                }
+        try (var response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                throw new IOException("Unexpected response status: " + response.code());
+            }
 
-                HttpEntity entity = response.getEntity();
-                if (entity == null) {
-                    throw new IOException("No content returned from " + urlString);
-                }
+            var body = response.body();
 
-                long contentLength = entity.getContentLength();
-                try (InputStream inputStream = entity.getContent();
-                     FileOutputStream outputStream = new FileOutputStream(outputFile)) {
+            var contentLength = body.contentLength();
+            try (var source = body.source();
+                 var sink = Okio.buffer(Okio.sink(outputFile))) {
 
-                    byte[] buffer = new byte[8192];
-                    int bytesRead;
-                    long totalBytesRead = 0;
-                    while ((bytesRead = inputStream.read(buffer)) != -1) {
-                        outputStream.write(buffer, 0, bytesRead);
-                        totalBytesRead += bytesRead;
-                        if (contentLength > 0) {
-                            float percentComplete = (float) totalBytesRead / contentLength;
-                            percentCompleteConsumer.setProgress(percentComplete);
-                        }
+                var buffer = new Buffer();
+                var totalBytesRead = 0L;
+                long bytesRead;
+
+                while ((bytesRead = source.read(buffer, 8192)) != -1) {
+                    sink.write(buffer, bytesRead);
+                    totalBytesRead += bytesRead;
+
+                    if (contentLength > 0) {
+                        var percentComplete = (float) totalBytesRead / contentLength;
+                        percentCompleteConsumer.setProgress(percentComplete);
                     }
                 }
-                EntityUtils.consume(entity);
-                return null;
-            });
+            }
         }
     }
 
