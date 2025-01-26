@@ -112,8 +112,25 @@ public class MCEFResourceManager {
         while (true) {
             try {
                 var tarGzArchive = new File(commitDirectory, platform.getNormalizedName() + ".tar.gz");
+                var checksumFile = new File(commitDirectory, platform.getNormalizedName() + ".tar.gz.sha256");
+
                 if (tarGzArchive.exists()) {
-                    FileUtils.forceDelete(tarGzArchive);
+                    try {
+                        FileUtils.forceDelete(tarGzArchive);
+                    } catch (Exception e) {
+                        MCEF.INSTANCE.getLogger().warn("Failed to delete existing .tar.gz file", e);
+                    }
+                }
+
+                // Checksum file should have been created by [compareChecksum] call in [requiresDownload]
+                // However if not, we either attempt to download it again.
+                if (!checksumFile.exists()) {
+                    try {
+                        downloadFile(getJavaCefChecksumDownloadUrl(), checksumFile, progressTracker);
+                    } catch (Exception e) {
+                        MCEF.INSTANCE.getLogger().error("Failed to download checksum file", e);
+                        throw e;
+                    }
                 }
 
                 // Download JCEF from file hosting
@@ -133,7 +150,6 @@ public class MCEFResourceManager {
                 // Compare checksum of .tar.gz file with remote checksum file
                 progressTracker.setTask("Comparing Checksum");
 
-                var checksumFile = new File(commitDirectory, platform.getNormalizedName() + ".tar.gz.sha256");
                 if (!compareChecksum(checksumFile, tarGzArchive)) {
                     throw new IOException("Checksum mismatch");
                 }
@@ -230,19 +246,36 @@ public class MCEFResourceManager {
         }
     }
 
-    private void downloadFile(String urlString, File outputFile, MCEFProgressTracker percentCompleteConsumer) throws IOException {
-        var client = new OkHttpClient();
+    private void downloadFile(String urlString, File outputFile, MCEFProgressTracker percentCompleteConsumer)
+            throws IOException {
+        var client = new OkHttpClient.Builder()
+                .followRedirects(true)
+                .followSslRedirects(true)
+                .build();
+
         var request = new Request.Builder()
                 .url(urlString)
                 .build();
 
         try (var response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected response status: " + response.code());
+                throw new IOException(String.format(
+                        "Download Failed: %n" +
+                                "URL: %s%n" +
+                                "HTTP Status: %d %s%n" +
+                                "Response Headers: %s%n" +
+                                "Redirected: %s%n" +
+                                "Final URL: %s",
+                        urlString,
+                        response.code(),
+                        response.message(),
+                        response.headers(),
+                        response.priorResponse() != null,
+                        response.request().url()
+                ));
             }
 
             var body = response.body();
-
             var contentLength = body.contentLength();
             try (var source = body.source();
                  var sink = Okio.buffer(Okio.sink(outputFile))) {
@@ -261,6 +294,18 @@ public class MCEFResourceManager {
                     }
                 }
             }
+        } catch (IOException e) {
+            throw new IOException(String.format(
+                    "Download Error:%n" +
+                            "URL: %s%n" +
+                            "Error Type: %s%n" +
+                            "Error Message: %s%n" +
+                            "Cause: %s",
+                    urlString,
+                    e.getClass().getName(),
+                    e.getMessage(),
+                    e.getCause() != null ? e.getCause().toString() : "None"
+            ), e);
         }
     }
 
