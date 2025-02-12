@@ -20,7 +20,7 @@
 
 package net.ccbluex.liquidbounce.mcef;
 
-import org.apache.commons.exec.OS;
+import oshi.SystemInfo;
 
 import java.util.Locale;
 
@@ -37,46 +37,86 @@ public enum MCEFPlatform {
     }
 
     public boolean isLinux() {
-        return (this == LINUX_AMD64 || this == LINUX_ARM64);
+        return this == LINUX_AMD64 || this == LINUX_ARM64;
     }
 
     public boolean isWindows() {
-        return (this == WINDOWS_AMD64 || this == WINDOWS_ARM64);
+        return this == WINDOWS_AMD64 || this == WINDOWS_ARM64;
     }
 
     public boolean isMacOS() {
-        return (this == MACOS_AMD64 || this == MACOS_ARM64);
+        return this == MACOS_AMD64 || this == MACOS_ARM64;
     }
 
     public static MCEFPlatform getPlatform() {
-        if (OS.isFamilyWindows()) {
-            if (OS.isArch("amd64")) {
-                return WINDOWS_AMD64;
-            } else if (OS.isArch("aarch64")) {
-                return WINDOWS_ARM64;
-            }
-        } else if (OS.isFamilyMac()) {
-            if (OS.isArch("x86_64")) {
-                return MACOS_AMD64;
-            } else if (OS.isArch("aarch64")) {
-                return MACOS_ARM64;
-            }
-        } else if (OS.isFamilyUnix()) {
-            if (OS.isArch("amd64")) {
-                return LINUX_AMD64;
-            } else if (OS.isArch("aarch64")) {
-                return LINUX_ARM64;
-            }
+        var systemInfo = new SystemInfo();
+        var platform = SystemInfo.getCurrentPlatform();
+        var processorId = systemInfo.getHardware().getProcessor().getProcessorIdentifier();
+
+        var isArm = processorId.isCpu64bit() &&
+                processorId.getMicroarchitecture().toLowerCase(Locale.ENGLISH).contains("arm");
+
+        return switch (platform) {
+            case WINDOWS, WINDOWSCE -> isArm ? WINDOWS_ARM64 : WINDOWS_AMD64;
+            case MACOS -> isArm ? MACOS_ARM64 : MACOS_AMD64;
+            case LINUX -> isArm ? LINUX_ARM64 : LINUX_AMD64;
+            default -> throw new RuntimeException("Unsupported platform: %s %s".formatted(
+                    platform, processorId.getMicroarchitecture()
+            ));
+        };
+    }
+
+    public boolean isSystemCompatible() {
+        var systemInfo = new SystemInfo();
+        var platform = SystemInfo.getCurrentPlatform();
+        var os = systemInfo.getOperatingSystem();
+        var processorId = systemInfo.getHardware().getProcessor().getProcessorIdentifier();
+
+        // Base requirement: 64-bit CPU
+        if (!processorId.isCpu64bit()) {
+            return false;
         }
 
-        String os = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
-        String arch = System.getProperty("os.arch").toLowerCase(Locale.ENGLISH);
-        throw new RuntimeException("Unsupported platform: " + os + " " + arch);
+        return switch (platform) {
+            case WINDOWS -> checkWindowsCompatibility(os.getVersionInfo().getBuildNumber());
+            case MACOS -> checkMacOSCompatibility(os.getVersionInfo().getVersion());
+            case LINUX -> true; // Just checking 64-bit for Linux
+            default -> false;
+        };
+    }
+
+    private static boolean checkWindowsCompatibility(String buildNumberStr) {
+        if (buildNumberStr == null) {
+            return false;
+        }
+
+        try {
+            var buildNumber = Integer.parseInt(buildNumberStr);
+            return buildNumber >= 10240; // Windows 10 minimum
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private static boolean checkMacOSCompatibility(String version) {
+        if (version == null) {
+            return false;
+        }
+
+        try {
+            var parts = version.split("\\.");
+            var majorVersion = Integer.parseInt(parts[0]);
+            var minorVersion = parts.length > 1 ? Integer.parseInt(parts[1]) : 0;
+
+            return majorVersion > 10 || (majorVersion == 10 && minorVersion >= 15);
+        } catch (NumberFormatException | ArrayIndexOutOfBoundsException e) {
+            return false;
+        }
     }
 
     public String[] requiredLibraries() {
-        if (isWindows()) {
-            return new String[] {
+        return switch (this) {
+            case WINDOWS_AMD64, WINDOWS_ARM64 -> new String[] {
                     "d3dcompiler_47.dll",
                     "libGLESv2.dll",
                     "libEGL.dll",
@@ -84,18 +124,13 @@ public enum MCEFPlatform {
                     "libcef.dll",
                     "jcef.dll"
             };
-        } else if (isMacOS()) {
-            return new String[] {
+            case MACOS_AMD64, MACOS_ARM64 -> new String[] {
                     "libjcef.dylib"
             };
-        } else if (isLinux()) {
-            return new String[] {
+            case LINUX_AMD64, LINUX_ARM64 -> new String[] {
                     "libcef.so",
                     "libjcef.so"
             };
-        }
-
-        return new String[0];
+        };
     }
-
 }

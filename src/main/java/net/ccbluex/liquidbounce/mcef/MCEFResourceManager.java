@@ -79,6 +79,10 @@ public class MCEFResourceManager {
                 MCEFPlatform.getPlatform(), settings.getLibrariesDirectory());
     }
 
+    public boolean isSystemCompatible() {
+        return platform.isSystemCompatible();
+    }
+
     public boolean requiresDownload() throws IOException {
         if (!commitDirectory.exists() && !commitDirectory.mkdirs()) {
             throw new IOException("Failed to create directory");
