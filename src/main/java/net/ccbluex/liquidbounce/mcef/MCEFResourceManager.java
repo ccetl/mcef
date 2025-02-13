@@ -47,16 +47,17 @@ public class MCEFResourceManager {
     private static final String JAVA_CEF_CHECKSUM_DOWNLOAD_URL =
             "${host}/mcef-cef/${java-cef-commit}/${platform}/checksum";
 
-    private final String host;
+    private final String[] hosts;
     private final String javaCefCommitHash;
     private final MCEFPlatform platform;
     public final MCEFProgressTracker progressTracker = new MCEFProgressTracker();
+    public int hostCounter = 0;
 
     private final File commitDirectory;
     private final File platformDirectory;
 
-    private MCEFResourceManager(String host, String javaCefCommitHash, MCEFPlatform platform, File directory) {
-        this.host = host;
+    private MCEFResourceManager(String[] hosts, String javaCefCommitHash, MCEFPlatform platform, File directory) {
+        this.hosts = hosts;
         this.javaCefCommitHash = javaCefCommitHash;
         this.platform = platform;
         this.commitDirectory = new File(directory, javaCefCommitHash);
@@ -75,7 +76,7 @@ public class MCEFResourceManager {
         MCEF.INSTANCE.getLogger().info("JCEF Commit: " + javaCefCommit);
         var settings = MCEF.INSTANCE.getSettings();
 
-        return new MCEFResourceManager(settings.getDownloadMirror(), javaCefCommit,
+        return new MCEFResourceManager(settings.getHosts().toArray(new String[0]), javaCefCommit,
                 MCEFPlatform.getPlatform(), settings.getLibrariesDirectory());
     }
 
@@ -89,6 +90,11 @@ public class MCEFResourceManager {
         }
 
         var checksumFile = new File(commitDirectory, platform.getNormalizedName() + ".tar.gz.sha256");
+
+        // If checksum file doesn't exist, we need to download JCEF
+        if (!checksumFile.exists()) {
+            return true;
+        }
 
         // We always download the checksum for the java-cef build
         // We will compare this with <platform>.tar.gz.sha256
@@ -104,14 +110,14 @@ public class MCEFResourceManager {
         }
         var platformDirectoryExists = platformDirectory.exists();
 
-        MCEF.INSTANCE.getLogger().info("Checksum matches: " + checksumMatches);
-        MCEF.INSTANCE.getLogger().info("Platform directory exists: " + platformDirectoryExists);
+        MCEF.INSTANCE.getLogger().info("Checksum matches: {}", checksumMatches);
+        MCEF.INSTANCE.getLogger().info("Platform directory exists: {}", platformDirectoryExists);
 
         return !checksumMatches || !platformDirectoryExists;
     }
 
     public void downloadJcef() throws IOException {
-        var retry = 0;
+        hostCounter = 0;
 
         while (true) {
             try {
@@ -126,19 +132,26 @@ public class MCEFResourceManager {
                     }
                 }
 
-                // Checksum file should have been created by [compareChecksum] call in [requiresDownload]
-                // However if not, we either attempt to download it again.
-                if (!checksumFile.exists()) {
+                if (checksumFile.exists()) {
                     try {
-                        downloadFile(getJavaCefChecksumDownloadUrl(), checksumFile, progressTracker);
+                        FileUtils.forceDelete(checksumFile);
                     } catch (Exception e) {
-                        MCEF.INSTANCE.getLogger().error("Failed to download checksum file", e);
-                        throw e;
+                        MCEF.INSTANCE.getLogger().warn("Failed to delete existing .tar.gz file", e);
                     }
                 }
 
+                // Download checksum file
+                MCEF.INSTANCE.getLogger().info("Downloading checksum file... [{}/{}]", hostCounter + 1, hosts.length);
+                progressTracker.setTask("Downloading Checksum");
+                try {
+                    downloadFile(getJavaCefChecksumDownloadUrl(), checksumFile, progressTracker);
+                } catch (Exception e) {
+                    MCEF.INSTANCE.getLogger().error("Failed to download checksum file", e);
+                    throw e;
+                }
+
                 // Download JCEF from file hosting
-                MCEF.INSTANCE.getLogger().info("Downloading JCEF...");
+                MCEF.INSTANCE.getLogger().info("Downloading JCEF... [{}/{}]", hostCounter + 1, hosts.length);
                 progressTracker.setTask("Downloading JCEF");
                 downloadFile(getJavaCefDownloadUrl(), tarGzArchive, progressTracker);
 
@@ -173,10 +186,9 @@ public class MCEFResourceManager {
                 break;
             } catch (Exception e) {
                 MCEF.INSTANCE.getLogger().error("Failed to download and extract JCEF", e);
-                retry++;
 
-                // Retry up to 3 times
-                if (retry >= 3) {
+                hostCounter++;
+                if (hostCounter >= hosts.length) {
                     throw e;
                 }
             }
@@ -185,8 +197,8 @@ public class MCEFResourceManager {
         progressTracker.done();
     }
 
-    public String getHost() {
-        return host;
+    public String[] getHosts() {
+        return hosts;
     }
 
     public String getJavaCefDownloadUrl() {
@@ -199,7 +211,7 @@ public class MCEFResourceManager {
 
     private String formatURL(String url) {
         return url
-                .replace("${host}", host)
+                .replace("${host}", hosts[hostCounter])
                 .replace("${java-cef-commit}", javaCefCommitHash)
                 .replace("${platform}", platform.getNormalizedName());
     }

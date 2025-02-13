@@ -26,7 +26,14 @@ import java.util.List;
 
 public class MCEFSettings {
 
-    private String downloadMirror = "https://api.liquidbounce.net/api/v3/resource";
+    private List<String> hosts = Arrays.asList(
+            // Cloudflare Certificate
+            "https://api.liquidbounce.net/api/v3/resource",
+            // Let's Encrypt Certificate
+            "https://api.ccbluex.net/api/v3/resource",
+            // No SSL
+            "http://nossl.api.liquidbounce.net/api/v3/resource"
+    );
     private String userAgent = null;
     private List<String> cefSwitches = Arrays.asList(
             "--autoplay-policy=no-user-gesture-required",
@@ -37,12 +44,20 @@ public class MCEFSettings {
     private File cacheDirectory = null;
     private File librariesDirectory = null;
 
-    public String getDownloadMirror() {
-        return downloadMirror;
+    public List<String> getHosts() {
+        return hosts;
     }
 
-    public void setDownloadMirror(String downloadMirror) {
-        this.downloadMirror = downloadMirror;
+    public void setHosts(List<String> hosts) {
+        this.hosts = hosts;
+    }
+
+    public void appendHosts(String... hosts) {
+        this.hosts.addAll(Arrays.asList(hosts));
+    }
+
+    public void removeHosts(String... hosts) {
+        this.hosts.removeAll(Arrays.asList(hosts));
     }
 
     public String getUserAgent() {
