@@ -48,7 +48,13 @@ public enum MCEFPlatform {
         return this == MACOS_AMD64 || this == MACOS_ARM64;
     }
 
+    private static MCEFPlatform platformInstance;
+
     public static MCEFPlatform getPlatform() {
+        if (platformInstance != null) {
+            return platformInstance;
+        }
+
         var systemInfo = new SystemInfo();
         var platform = SystemInfo.getCurrentPlatform();
         var processorId = systemInfo.getHardware().getProcessor().getProcessorIdentifier();
@@ -56,7 +62,7 @@ public enum MCEFPlatform {
         var isArm = processorId.isCpu64bit() &&
                 processorId.getMicroarchitecture().toLowerCase(Locale.ENGLISH).contains("arm");
 
-        return switch (platform) {
+        platformInstance = switch (platform) {
             case WINDOWS, WINDOWSCE -> isArm ? WINDOWS_ARM64 : WINDOWS_AMD64;
             case MACOS -> isArm ? MACOS_ARM64 : MACOS_AMD64;
             case LINUX -> isArm ? LINUX_ARM64 : LINUX_AMD64;
@@ -64,6 +70,8 @@ public enum MCEFPlatform {
                     platform, processorId.getMicroarchitecture()
             ));
         };
+
+        return platformInstance;
     }
 
     public boolean isSystemCompatible() {

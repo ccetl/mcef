@@ -82,6 +82,8 @@ public class MCEFBrowser extends CefBrowserOsr {
     private int clicks;
     private int mouseButton;
 
+    private final boolean isMacOs = MCEFPlatform.getPlatform().isMacOS();
+
     public MCEFBrowser(MCEFClient client, String url, boolean transparent, int frameRate) {
         super(client.getHandle(), url, transparent, null, new MCEFBrowserSettings(frameRate));
         renderer = new MCEFRenderer(transparent);
@@ -293,7 +295,7 @@ public class MCEFBrowser extends CefBrowserOsr {
 
     public void sendMouseWheel(int mouseX, int mouseY, double amount) {
         // macOS generally has a slow scroll speed that feels more natural with their magic mice / trackpads
-        if (!MCEFPlatform.getPlatform().isMacOS()) {
+        if (!isMacOs) {
             // This removes the feeling of "smooth scroll"
             if (amount < 0) {
                 amount = Math.floor(amount);
